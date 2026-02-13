@@ -1,0 +1,163 @@
+.dice-roller {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roll-summary {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(107, 70, 193, 0.15);
+  border: 1px solid rgba(107, 70, 193, 0.3);
+  animation: fadeIn 0.3s ease;
+}
+
+.roll-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.roll-total-label {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.roll-total-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent-indigo);
+  text-shadow: 0 0 10px rgba(107, 70, 193, 0.5);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dice-roller-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.dice-tab-button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  margin-bottom: -1px;
+}
+
+.dice-tab-button:hover {
+  color: var(--white);
+}
+
+.dice-tab-button.active {
+  color: var(--accent-indigo);
+  border-bottom-color: var(--accent-indigo);
+}
+
+.history-controls {
+  margin-bottom: 16px;
+}
+
+.history-stats {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(107, 70, 193, 0.1);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-indigo);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.history-item {
+  padding: 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.1);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.history-dice {
+  font-weight: 600;
+  color: var(--white);
+}
+
+.history-total {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent-indigo);
+}
+
+.history-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.history-results,
+.history-modifier,
+.history-attribute {
+  color: var(--text-secondary);
+}
+
+.history-time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
