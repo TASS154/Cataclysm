@@ -237,9 +237,18 @@ export default function DiceRoller({
           />
         </div>
         
-        <button className="btn-gradient fullwidth mt" onClick={() => roll()}>
-          Rolar
-        </button>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button className="btn-gradient fullwidth mt" onClick={() => roll()}>
+            Rolar
+          </button>
+          <button
+            className="btn-primary initiative-btn-small"
+            onClick={rollInitiative}
+            title="Rolar Iniciativa (d20 puro)"
+          >
+            I
+          </button>
+        </div>
         
         {lastRollTotal !== null && (
           <div className="roll-summary">
@@ -294,12 +303,6 @@ export default function DiceRoller({
               Desvantagem (d20x2)
             </button>
           </div>
-          <button
-            className="btn-gradient fullwidth mt"
-            onClick={rollInitiative}
-          >
-            Rolar Iniciativa (d20 puro)
-          </button>
           <div className="muted small">Dicas: 1 → falha crítica. 20 → sucesso crítico.</div>
         </div>
 

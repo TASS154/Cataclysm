@@ -279,6 +279,60 @@ export default function RPGPlayerEditor() {
                 ))
               )}
             </div>
+            
+            {selectedId && sheet.effects && sheet.effects.length > 0 && (
+              <div className="status-sidebar-section">
+                <h3 className="status-sidebar-title">Status Sofridos</h3>
+                <div className="status-sidebar-list">
+                  {sheet.effects.map((ef) => {
+                    const rounds = ef.rounds !== undefined ? ef.rounds : 0;
+                    const damage = ef.damage !== undefined ? ef.damage : 0;
+                    return (
+                      <div key={ef.id} className="status-sidebar-item">
+                        <div className="status-sidebar-item-info">
+                          <div className="status-sidebar-item-name">{ef.name}</div>
+                          {rounds > 0 && (
+                            <div className="status-sidebar-item-rounds">{rounds} rodada{rounds !== 1 ? "s" : ""}</div>
+                          )}
+                          {damage > 0 && (
+                            <div className="status-sidebar-item-damage">-{damage} HP/rodada</div>
+                          )}
+                        </div>
+                        {rounds > 0 && (
+                          <button
+                            className="btn-primary small"
+                            onClick={() => {
+                              const s = JSON.parse(JSON.stringify(sheet));
+                              const condition = s.effects.find(e => e.id === ef.id);
+                              if (!condition) return;
+
+                              const newRounds = (condition.rounds || 0) - 1;
+                              
+                              if (condition.damage > 0) {
+                                const currentHp = s.bars?.hp || 0;
+                                s.bars.hp = Math.max(0, currentHp - condition.damage);
+                              }
+
+                              if (newRounds <= 0) {
+                                s.effects = s.effects.filter(e => e.id !== ef.id);
+                              } else {
+                                condition.rounds = newRounds;
+                              }
+
+                              setSheet(s);
+                              saveSheet(s);
+                            }}
+                            title="Aplicar condição (reduz 1 rodada e aplica dano)"
+                          >
+                            Aplicar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </aside>
 

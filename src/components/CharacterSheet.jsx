@@ -5,12 +5,12 @@ import Inventory from "./Inventory";
 import "./CharacterSheet.css";
 
 const TAB_CONFIG = [
-  { id: "info", label: "Informações", icon: "👤" },
   { id: "attributes", label: "Atributos", icon: "⚔️" },
   { id: "abilities", label: "Habilidades", icon: "✨" },
   { id: "inventory", label: "Inventário", icon: "🎒" },
   { id: "status", label: "Status", icon: "📊" },
   { id: "notes", label: "Anotações", icon: "📝" },
+  { id: "info", label: "Info", icon: "👤" },
 ];
 
 export default function CharacterSheet({ 
@@ -404,9 +404,33 @@ export default function CharacterSheet({
             <div className="panel bars-panel">
               <h3>Barras</h3>
               {[
-                { key: "bars.inata", label: "Inata", colorClass: "bar-blue", max: sheet.level * 200 },
-                { key: "bars.ether", label: "Ether", colorClass: "bar-orange", max: sheet.level * 100 },
-                { key: "bars.vigor", label: "Vigor", colorClass: "bar-purple", max: sheet.level * 50 },
+                { 
+                  key: "bars.inata", 
+                  label: "Inata", 
+                  colorClass: "bar-blue", 
+                  max: sheet.bars?.maxInata || sheet.level * 200,
+                  maxKey: "maxInata",
+                  maxReadonly: true,
+                  defaultMax: () => sheet.level * 200
+                },
+                { 
+                  key: "bars.ether", 
+                  label: "Ether", 
+                  colorClass: "bar-orange", 
+                  max: sheet.bars?.maxEther || sheet.level * 100,
+                  maxKey: "maxEther",
+                  maxReadonly: false,
+                  defaultMax: () => sheet.level * 100
+                },
+                { 
+                  key: "bars.vigor", 
+                  label: "Vigor", 
+                  colorClass: "bar-purple", 
+                  max: sheet.bars?.maxVigor || sheet.level * 50,
+                  maxKey: "maxVigor",
+                  maxReadonly: false,
+                  defaultMax: () => sheet.level * 50
+                },
                 { key: "bars.hp", label: "Vida (HP)", colorClass: "bar-red", max: sheet.bars?.maxHp || sheet.bars?.hp || 100 },
                 { key: "bars.sanity", label: "Sanidade Mental", colorClass: "bar-yellow", max: 100, maxFixed: true },
               ].map((b) => {
@@ -430,6 +454,29 @@ export default function CharacterSheet({
                           onBlur={onSave}
                           className="input-number bar-input"
                         />
+                        {(b.key === "bars.inata" || b.key === "bars.ether" || b.key === "bars.vigor") && (
+                          <>
+                            <span className="bar-separator">/</span>
+                            <input
+                              type="number"
+                              value={b.max}
+                              readOnly={b.maxReadonly}
+                              onChange={(e) => {
+                                if (!b.maxReadonly) {
+                                  const s = JSON.parse(JSON.stringify(sheet));
+                                  if (!s.bars) s.bars = {};
+                                  const defaultVal = b.key === "bars.ether" ? s.level * 100 : s.level * 50;
+                                  s.bars[b.maxKey] = e.target.value === "" ? defaultVal : Number(e.target.value);
+                                  onUpdateSheet(s);
+                                }
+                              }}
+                              onBlur={onSave}
+                              className="input-number bar-input"
+                              placeholder="Max"
+                              style={b.maxReadonly ? { opacity: 0.6, cursor: "not-allowed" } : {}}
+                            />
+                          </>
+                        )}
                         {b.key === "bars.hp" && (
                           <>
                             <span className="bar-separator">/</span>
@@ -495,13 +542,13 @@ export default function CharacterSheet({
                   <div style={{ fontWeight: "600", fontSize: "14px" }}>Classe de Armadura (CA)</div>
                   <div style={{ fontSize: "24px", fontWeight: "800", color: "var(--accent-indigo)" }}>
                     {10 + Math.max(
-                      sheet.stats?.con || 0,
+                      Math.floor((sheet.stats?.con || 0) / 2),
                       Math.floor((sheet.stats?.des || 0) / 2)
                     )}
                   </div>
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
-                  Base 10 + max(CON: {sheet.stats?.con || 0}, DES/2: {Math.floor((sheet.stats?.des || 0) / 2)})
+                  Base 10 + max(CON/2: {Math.floor((sheet.stats?.con || 0) / 2)}, DES/2: {Math.floor((sheet.stats?.des || 0) / 2)})
                 </div>
               </div>
             </div>
