@@ -77,6 +77,35 @@ users/
         - timestamp: number
 ```
 
+### Sessões de mapa (multiplayer)
+
+Coleções novas, sem alterar as existentes:
+
+```
+sessions/
+  {sessionId}/
+    - gmUsername: string
+    - mapWidth: number
+    - mapHeight: number
+    - name: string
+    - backgroundImageUrl: string (opcional, URL ou data URL da imagem de fundo)
+    - createdAt: timestamp
+    tokens/
+      {tokenId}/
+        - ownerUsername: string
+        - characterId: string
+        - characterName: string
+        - x: number
+        - y: number
+        - color: string (opcional)
+    areas/
+      {areaId}/
+        - name: string
+        - type: "circle" | "cone" | "freeform"
+        - cells: Array<{ x: number, y: number }>
+        - color: string (opcional)
+```
+
 ## Configuração
 
 1. Crie um projeto no [Firebase Console](https://console.firebase.google.com/)
@@ -113,6 +142,23 @@ service cloud.firestore {
 ```
 
 **Nota**: Este projeto atualmente usa autenticação simples (username/password). Para produção, recomenda-se migrar para Firebase Auth.
+
+### Regras para sessões de mapa
+
+Como o app usa login próprio (não Firebase Auth), as regras abaixo permitem leitura e escrita nas coleções `sessions` e `sessions/{sessionId}/tokens` para qualquer cliente. A restrição de “quem move qual token” é feita na interface (mestre pode mover todos; jogador só o próprio). Para uso em grupo de confiança.
+
+```javascript
+    // Sessões de mapa (compartilhadas)
+    match /sessions/{sessionId} {
+      allow read, write: if true;
+      match /tokens/{tokenId} {
+        allow read, write: if true;
+      }
+      match /areas/{areaId} {
+        allow read, write: if true;
+      }
+    }
+```
 
 ## Índices Recomendados
 

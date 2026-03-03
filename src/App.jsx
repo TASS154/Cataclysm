@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import {
   collection,
   addDoc,
@@ -14,6 +15,10 @@ import { useTheme } from "./hooks/useTheme";
 import ThemeToggle from "./components/ThemeToggle";
 import DiceRoller from "./components/DiceRoller";
 import CharacterSheet from "./components/CharacterSheet";
+import MapView from "./components/MapView";
+import JoinPage from "./pages/JoinPage";
+import { UserProvider } from "./context/UserContext";
+import { createSession } from "./services/sessionService";
 import "./RPGPlayerEditor.css";
 
 export default function RPGPlayerEditor() {
@@ -63,6 +68,8 @@ export default function RPGPlayerEditor() {
   };
 
   const [sheet, setSheet] = useState(emptySheet);
+  const [contentTab, setContentTab] = useState("sheet");
+  const navigate = useNavigate();
 
   // Login Handling
   const handleLogin = async (e) => {
@@ -228,28 +235,87 @@ export default function RPGPlayerEditor() {
     );
   }
 
-  // Render Main App
-  return (
-    <div className="container">
-      <ThemeToggle theme={theme} onToggle={toggleTheme} />
+  const editorLayoutProps = {
+    username,
+    characters,
+    selectedId,
+    setSelectedId,
+    sheet,
+    setSheet,
+    emptySheet,
+    saveSheet,
+    deleteCharacter,
+    handleLogout,
+    loading,
+    navigate,
+    theme,
+    toggleTheme,
+    contentTab,
+    setContentTab,
+  };
 
-      <div className="app-grid">
-        <aside className="sidebar">
-          <h2>Fichas de {username}</h2>
-          <div className="controls">
-            <button
-              className="btn-primary fullwidth"
-              onClick={() => {
-                const n = { ...emptySheet, name: "Nova Ficha " + (characters.length + 1), owner: username };
-                setSheet(n);
-                saveSheet(n);
-              }}
-            >
-              + Criar ficha
-            </button>
-            <button className="btn-danger fullwidth" onClick={handleLogout}>
-              Sair
-            </button>
+  function SessionLayoutWrapper() {
+    const { sessionId } = useParams();
+    return <EditorLayout sessionId={sessionId} {...editorLayoutProps} />;
+  }
+
+  function EditorLayout({
+    sessionId,
+    username,
+    characters,
+    selectedId,
+    setSelectedId,
+    sheet,
+    setSheet,
+    emptySheet,
+    saveSheet,
+    deleteCharacter,
+    handleLogout,
+    loading,
+    navigate,
+    contentTab,
+    setContentTab,
+  }) {
+    return (
+      <>
+        <div className="container">
+          <div className="app-grid">
+            <aside className="sidebar">
+                    <h2>Fichas de {username}</h2>
+                    <div className="controls">
+                      <button
+                        className="btn-primary fullwidth"
+                        onClick={() => {
+                          const n = { ...emptySheet, name: "Nova Ficha " + (characters.length + 1), owner: username };
+                          setSheet(n);
+                          saveSheet(n);
+                        }}
+                      >
+                        + Criar ficha
+                      </button>
+                      <button
+                        className="btn-primary fullwidth"
+                        onClick={async () => {
+                          try {
+                            const id = await createSession(username, 20, 15);
+                            navigate("/session/" + id);
+                          } catch (err) {
+                            console.error(err);
+                            alert("Erro ao criar sessão: " + err.message);
+                          }
+                        }}
+                      >
+                        Criar sessão (mapa)
+                      </button>
+                      <button
+                        className="btn-primary fullwidth"
+                        onClick={() => navigate("/join")}
+                      >
+                        Entrar na sessão
+                      </button>
+                      <button className="btn-danger fullwidth" onClick={handleLogout}>
+                        Sair
+                      </button>
             <div className="list-scroll">
               {loading ? (
                 <div className="muted">Carregando...</div>
@@ -337,6 +403,14 @@ export default function RPGPlayerEditor() {
         </aside>
 
         <main className="editor">
+          {sessionId && (
+            <div className="editor-tabs">
+              <button type="button" className={contentTab === "sheet" ? "editor-tab active" : "editor-tab"} onClick={() => setContentTab("sheet")}>Ficha</button>
+              <button type="button" className={contentTab === "map" ? "editor-tab active" : "editor-tab"} onClick={() => setContentTab("map")}>Mapa</button>
+            </div>
+          )}
+          {(!sessionId || contentTab === "sheet") ? (
+            <>
           <div className="editor-header">
             <div className="character-header">
               {sheet.image && (
@@ -393,6 +467,10 @@ export default function RPGPlayerEditor() {
             username={username}
             characterId={selectedId}
           />
+            </>
+          ) : (
+            <MapView sessionId={sessionId} embedded onBack={() => navigate("/")} />
+          )}
         </main>
 
         <aside className="right-aside">
@@ -406,9 +484,22 @@ export default function RPGPlayerEditor() {
         </aside>
       </div>
 
-      <footer className="footer">
-        Conectado ao Firestore. Sistema de fichas de RPG melhorado.
-      </footer>
-    </div>
+          <footer className="footer">
+            Conectado ao Firestore. Sistema de fichas de RPG melhorado.
+          </footer>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <UserProvider username={username}>
+      <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      <Routes>
+        <Route path="/" element={<EditorLayout sessionId={null} {...editorLayoutProps} />} />
+        <Route path="/session/:sessionId" element={<SessionLayoutWrapper />} />
+        <Route path="/join" element={<JoinPage />} />
+      </Routes>
+    </UserProvider>
   );
 }

@@ -190,6 +190,31 @@
   min-height: 600px;
 }
 
+/* Tabs (Ficha / Mapa) */
+.editor-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 8px;
+}
+.editor-tab {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 500;
+}
+.editor-tab:hover {
+  background: rgba(255,255,255,0.1);
+}
+.editor-tab.active {
+  border-color: #6d28d9;
+  background: rgba(109,40,217,0.15);
+}
+
 /* Header */
 .editor-header { 
   display: flex; 
