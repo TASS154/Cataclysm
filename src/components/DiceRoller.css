@@ -1,7 +1,27 @@
 .dice-roller {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+}
+
+.dice-roller h3 {
+  margin: 0 0 4px 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dice-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shortcuts-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .roll-summary {
@@ -70,6 +90,12 @@
 .dice-tab-button.active {
   color: var(--accent-indigo);
   border-bottom-color: var(--accent-indigo);
+  font-weight: 700;
+}
+
+.dice-tab-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .history-controls {

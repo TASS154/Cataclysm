@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import "./AbilityCard.css";
 
+const MAGIC_FIELDS = [
+  { value: "metamagia", label: "Metamagia" },
+  { value: "manipulacao", label: "Manipulação" },
+  { value: "invocacao", label: "Invocação" },
+  { value: "conjuracao", label: "Conjuração" },
+  { value: "transmutacao", label: "Transmutação" },
+];
+
 export default function AbilityCard({ 
   ability, 
   isFavorite, 
@@ -9,7 +17,8 @@ export default function AbilityCard({
   onToggleFavorite,
   onSave,
   onUse,
-  sheet
+  sheet,
+  getEffectiveCost
 }) {
   const getResourceBar = (abilityType) => {
     if (abilityType === "inata") return "inata";
@@ -25,10 +34,12 @@ export default function AbilityCard({
     return "";
   };
 
-  const cost = typeof ability.cost === "number" ? ability.cost : (typeof ability.cost === "string" ? (Number(ability.cost) || 0) : 0);
+  const baseCost = typeof ability.cost === "number" ? ability.cost : (typeof ability.cost === "string" ? (Number(ability.cost) || 0) : 0);
+  const cost = getEffectiveCost ? getEffectiveCost(ability) : baseCost;
   const resourceBar = getResourceBar(ability.type);
   const currentResource = sheet?.bars?.[resourceBar] || 0;
-  const canUse = cost > 0 && currentResource >= cost;
+  const canUse = baseCost > 0 && currentResource >= cost;
+  const costLabel = cost !== baseCost ? `${cost} (${baseCost} base)` : `${cost}`;
   const [isExpanded, setIsExpanded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState(ability);
@@ -66,18 +77,18 @@ export default function AbilityCard({
           </button>
           <button
             className="ability-info-btn"
-            onClick={() => setShowModal(true)}
+            onClick={() => { setEditData({ ...ability }); setShowModal(true); }}
             aria-label="Detalhes"
           >
             ⓘ
           </button>
-          {cost > 0 && onUse && (
+          {baseCost > 0 && onUse && (
             <button
               className="ability-use-btn"
               onClick={() => onUse(ability)}
               disabled={!canUse}
               aria-label="Usar habilidade"
-              title={canUse ? `Usar (gasta ${cost} de ${getResourceName(ability.type)})` : `Recurso insuficiente (${currentResource}/${cost})`}
+              title={canUse ? `Usar (gasta ${costLabel} de ${getResourceName(ability.type)})` : `Recurso insuficiente (${currentResource}/${cost})`}
             >
               Usar
             </button>
@@ -120,6 +131,20 @@ export default function AbilityCard({
                 <option value="magia">Magia</option>
                 <option value="arte">Arte Divina</option>
               </select>
+              {ability.type === "magia" && (
+                <select
+                  value={ability.field || ""}
+                  onChange={(e) => onUpdate(ability.id, { field: e.target.value })}
+                  className="ability-select"
+                  onBlur={onSave}
+                  title="Campo da magia"
+                >
+                  <option value="">Campo</option>
+                  {MAGIC_FIELDS.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              )}
               <button className="link-danger" onClick={() => onRemove(ability.id)}>
                 Remover
               </button>
@@ -204,6 +229,21 @@ export default function AbilityCard({
                   <option value="arte">Arte Divina</option>
                 </select>
               </div>
+              {editData.type === "magia" && (
+                <div className="form-group">
+                  <label>Campo da magia</label>
+                  <select
+                    value={editData.field || ""}
+                    onChange={(e) => setEditData({ ...editData, field: e.target.value })}
+                    className="input-login"
+                  >
+                    <option value="">Selecione</option>
+                    {MAGIC_FIELDS.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn-primary" onClick={handleSave}>

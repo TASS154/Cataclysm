@@ -1,14 +1,22 @@
 import React, { useState, useRef, useEffect } from "react";
-import { rollDie, dieSides } from "../utils/dice";
+import { rollDie, dieSides, rollDiceString } from "../utils/dice";
 import { saveRollToHistory, getRollHistory } from "../services/rollHistoryService";
 import "./DiceRoller.css";
 
 export default function DiceRoller({ 
   sheet, 
+  effectiveStats,
+  onUpdateSheet,
   username, 
   onRollComplete 
 }) {
+  const stats = effectiveStats || sheet?.stats || {};
+  const shortcuts = sheet?.diceShortcuts || [];
   const [diceType, setDiceType] = useState("d20");
+  const [showShortcutForm, setShowShortcutForm] = useState(false);
+  const [newShortcutLabel, setNewShortcutLabel] = useState("");
+  const [newShortcutDiceString, setNewShortcutDiceString] = useState("1d20");
+  const [newShortcutModifierAttr, setNewShortcutModifierAttr] = useState("puro");
   const [diceCount, setDiceCount] = useState(1);
   const [rollResults, setRollResults] = useState([]);
   const [lastRollTotal, setLastRollTotal] = useState(null);
@@ -43,7 +51,7 @@ export default function DiceRoller({
     const results = [];
     const haloIndices = [];
 
-    const attrMod = selectedModAttr === "puro" ? 0 : sheet.stats[selectedModAttr] || 0;
+    const attrMod = selectedModAttr === "puro" ? 0 : stats[selectedModAttr] || 0;
     const totalMod = attrMod + Number(manualMod || 0);
 
     for (let i = 0; i < count; i++) {
@@ -84,6 +92,57 @@ export default function DiceRoller({
       clearTimeout(haloTimer.current);
       haloTimer.current = setTimeout(() => setHaloIndices([]), 1200);
     }
+  };
+
+  const rollShortcut = (shortcut) => {
+    const attrMod = (shortcut.modifierAttr && shortcut.modifierAttr !== "puro") ? (stats[shortcut.modifierAttr] || 0) : 0;
+    const out = rollDiceString(shortcut.diceString || "1d20", attrMod);
+    if (!out) {
+      setRollResults([]);
+      setLastRollTotal(null);
+      return;
+    }
+    const results = out.results.map((r, i) => ({ raw: r, mod: i === 0 ? attrMod : 0, total: i === 0 ? r + attrMod : r }));
+    setRollResults(results);
+    setLastRollTotal(out.total);
+    setHighlightedResult(null);
+    const sides = out.results.length ? (out.total - attrMod) / out.results.length : 0;
+    if (shortcut.diceString?.toLowerCase().includes("d20") && out.results.length === 1) {
+      if (out.results[0] === 1) triggerFullFlash("red");
+      if (out.results[0] === 20) triggerFullFlash("green");
+    }
+    if (username) {
+      saveRollToHistory(username, {
+        diceString: shortcut.diceString || shortcut.label,
+        results: out.results,
+        modifier: attrMod,
+        total: out.total,
+        attribute: shortcut.modifierAttr || "puro",
+        manualMod: 0
+      });
+    }
+    if (onRollComplete) onRollComplete({ results, total: out.total, diceString: shortcut.diceString });
+  };
+
+  const addShortcut = () => {
+    const label = newShortcutLabel.trim();
+    const diceString = newShortcutDiceString.trim() || "1d20";
+    if (!label) return;
+    if (!onUpdateSheet) return;
+    const next = {
+      ...sheet,
+      diceShortcuts: [...shortcuts, { id: Date.now(), label, diceString, modifierAttr: newShortcutModifierAttr === "puro" ? undefined : newShortcutModifierAttr }]
+    };
+    onUpdateSheet(next);
+    setNewShortcutLabel("");
+    setNewShortcutDiceString("1d20");
+    setNewShortcutModifierAttr("puro");
+    setShowShortcutForm(false);
+  };
+
+  const removeShortcut = (id) => {
+    if (!onUpdateSheet) return;
+    onUpdateSheet({ ...sheet, diceShortcuts: shortcuts.filter((s) => s.id !== id) });
   };
 
   const rollAdvantageDisadvantage = (isAdvantage) => {
@@ -222,7 +281,7 @@ export default function DiceRoller({
             className="select"
           >
             <option value="puro">Puro (0)</option>
-            {Object.entries(sheet.stats || {}).map(([k, v]) => (
+            {Object.entries(stats).map(([k, v]) => (
               <option key={k} value={k}>
                 {k.toUpperCase()} ({v})
               </option>
@@ -304,6 +363,71 @@ export default function DiceRoller({
             </button>
           </div>
           <div className="muted small">Dicas: 1 → falha crítica. 20 → sucesso crítico.</div>
+        </div>
+
+        <div className="shortcuts-section" style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+          <h4>Atalhos</h4>
+          {(shortcuts || []).length > 0 && (
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px 0" }}>
+              {shortcuts.map((sc) => (
+                <li key={sc.id} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <button type="button" className="btn-primary small" onClick={() => rollShortcut(sc)}>
+                    Rolar
+                  </button>
+                  <span style={{ flex: 1 }}>{sc.label}</span>
+                  <span className="muted small">{sc.diceString}{sc.modifierAttr ? ` +${sc.modifierAttr.toUpperCase()}` : ""}</span>
+                  {onUpdateSheet && (
+                    <button type="button" className="link-danger small" onClick={() => removeShortcut(sc.id)} aria-label="Remover">×</button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {showShortcutForm ? (
+            <div style={{ marginBottom: "12px", padding: "12px", background: "rgba(0,0,0,0.2)", borderRadius: "8px" }}>
+              <input
+                type="text"
+                placeholder="Nome do atalho"
+                value={newShortcutLabel}
+                onChange={(e) => setNewShortcutLabel(e.target.value)}
+                className="input-new"
+                style={{ width: "100%", marginBottom: "8px" }}
+              />
+              <input
+                type="text"
+                placeholder="Fórmula (ex: 1d20, 2d6)"
+                value={newShortcutDiceString}
+                onChange={(e) => setNewShortcutDiceString(e.target.value)}
+                className="input-new"
+                style={{ width: "100%", marginBottom: "8px" }}
+              />
+              <select
+                value={newShortcutModifierAttr}
+                onChange={(e) => setNewShortcutModifierAttr(e.target.value)}
+                className="select"
+                style={{ width: "100%", marginBottom: "8px" }}
+              >
+                <option value="puro">Sem modificador</option>
+                {Object.entries(stats).map(([k, v]) => (
+                  <option key={k} value={k}>{k.toUpperCase()} ({v})</option>
+                ))}
+              </select>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" className="btn-primary small" onClick={addShortcut} disabled={!newShortcutLabel.trim()}>
+                  Adicionar
+                </button>
+                <button type="button" className="btn-danger small" onClick={() => { setShowShortcutForm(false); setNewShortcutLabel(""); setNewShortcutDiceString("1d20"); setNewShortcutModifierAttr("puro"); }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            onUpdateSheet && (
+              <button type="button" className="btn-primary small" onClick={() => setShowShortcutForm(true)}>
+                + Criar atalho
+              </button>
+            )
+          )}
         </div>
 
         <div className="quick-view">

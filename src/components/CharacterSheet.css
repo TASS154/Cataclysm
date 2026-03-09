@@ -7,6 +7,17 @@
   padding-top: 20px;
 }
 
+.character-info-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 480px;
+}
+
+.character-info-form .form-group {
+  margin-bottom: 0;
+}
+
 @keyframes fadeInContent {
   from {
     opacity: 0;
@@ -31,16 +42,26 @@
 
 .notes-textarea {
   width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.1);
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-color);
   color: var(--text-primary);
   outline: none;
   resize: vertical;
   font-family: inherit;
   font-size: 14px;
   line-height: 1.6;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.notes-textarea:hover {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.notes-textarea:focus {
+  border-color: var(--accent-indigo);
+  box-shadow: var(--focus-ring);
 }
 
 .empty-state {
@@ -154,6 +175,17 @@
 .add-ability-form textarea {
   flex: 1;
   min-width: 200px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.add-ability-form .form-row input:focus,
+.add-ability-form .form-row select:focus,
+.add-ability-form textarea:focus {
+  outline: none;
+  border-color: var(--accent-indigo);
+  box-shadow: var(--focus-ring);
 }
 
 .add-ability-form textarea {

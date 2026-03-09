@@ -13,13 +13,23 @@ const TAB_CONFIG = [
   { id: "info", label: "Info", icon: "👤" },
 ];
 
+const MAGIC_FIELDS = [
+  { value: "metamagia", label: "Metamagia" },
+  { value: "manipulacao", label: "Manipulação" },
+  { value: "invocacao", label: "Invocação" },
+  { value: "conjuracao", label: "Conjuração" },
+  { value: "transmutacao", label: "Transmutação" },
+];
+
 export default function CharacterSheet({ 
   sheet, 
+  effectiveStats: effectiveStatsProp,
   onUpdateSheet, 
   onSave,
   username,
   characterId 
 }) {
+  const effectiveStats = effectiveStatsProp || sheet.stats || {};
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem(`activeTab-${characterId}`) || "attributes";
   });
@@ -33,10 +43,14 @@ export default function CharacterSheet({
     description: "",
     effect: "",
     damage: "",
-    cost: ""
+    cost: "",
+    field: ""
   });
   const [newTrait, setNewTrait] = useState({ name: "", effect: "" });
-  const [newEffect, setNewEffect] = useState({ name: "", description: "", rounds: 0, damage: 0, effect: "" });
+  const [newEffect, setNewEffect] = useState({ name: "", description: "", rounds: 0, damage: 0, effect: "", drainType: "", drainAmount: 0 });
+  const [showAddModeForm, setShowAddModeForm] = useState(false);
+  const [newModeName, setNewModeName] = useState("");
+  const [newModeModifiers, setNewModeModifiers] = useState({});
 
   useEffect(() => {
     localStorage.setItem(`activeTab-${characterId}`, activeTab);
@@ -81,6 +95,22 @@ export default function CharacterSheet({
     return null;
   };
 
+  const getMagicCostReduction = (level) => {
+    if (level >= 17) return 0.5;
+    if (level >= 13) return 0.4;
+    return 0.3;
+  };
+
+  const getEffectiveCost = (ability) => {
+    const baseCost = typeof ability.cost === "number" ? ability.cost : Number(ability.cost) || 0;
+    if (ability.type !== "magia" || !ability.field) return baseCost;
+    const dominant = (sheet.characterInfo || {}).dominantField || "";
+    if (ability.field !== dominant) return baseCost;
+    const level = Number(sheet.level) || 1;
+    const reduction = getMagicCostReduction(level);
+    return Math.max(0, Math.floor(baseCost * (1 - reduction)));
+  };
+
   const useAbility = (ability) => {
     const resourceBar = getResourceBar(ability.type);
     if (!resourceBar) {
@@ -88,12 +118,13 @@ export default function CharacterSheet({
       return;
     }
 
-    const cost = typeof ability.cost === "number" ? ability.cost : Number(ability.cost) || 0;
-    if (cost <= 0) {
+    const baseCost = typeof ability.cost === "number" ? ability.cost : Number(ability.cost) || 0;
+    if (baseCost <= 0) {
       alert("Esta habilidade não tem custo definido.");
       return;
     }
 
+    const cost = getEffectiveCost(ability);
     const currentResource = sheet.bars?.[resourceBar] || 0;
     if (currentResource < cost) {
       alert(`Recurso insuficiente! Você tem ${currentResource} de ${resourceBar === "inata" ? "Inata" : resourceBar === "vigor" ? "Vigor" : "Ether"}, mas precisa de ${cost}.`);
@@ -149,7 +180,8 @@ export default function CharacterSheet({
       description: newAbility.description || "",
       effect: newAbility.effect || "",
       damage: newAbility.damage || "",
-      cost: costValue
+      cost: costValue,
+      ...(newAbility.type === "magia" && newAbility.field ? { field: newAbility.field } : {})
     };
     
     onUpdateSheet({ ...sheet, abilities: [...sheet.abilities, abilityToAdd] });
@@ -161,7 +193,8 @@ export default function CharacterSheet({
       description: "",
       effect: "",
       damage: "",
-      cost: ""
+      cost: "",
+      field: ""
     });
     setShowAddAbilityForm(false);
     
@@ -205,12 +238,14 @@ export default function CharacterSheet({
       description: newEffect.description || "",
       rounds: Number(newEffect.rounds) || 0,
       damage: Number(newEffect.damage) || 0,
-      effect: newEffect.effect || ""
+      effect: newEffect.effect || "",
+      drainType: newEffect.drainType || "",
+      drainAmount: Number(newEffect.drainAmount) || 0
     }];
     onUpdateSheet(s);
     
     // Reset form
-    setNewEffect({ name: "", description: "", rounds: 0, damage: 0, effect: "" });
+    setNewEffect({ name: "", description: "", rounds: 0, damage: 0, effect: "", drainType: "", drainAmount: 0 });
     
     // Save after state update
     setTimeout(() => {
@@ -223,20 +258,31 @@ export default function CharacterSheet({
     const condition = s.effects.find(e => e.id === conditionId);
     if (!condition) return;
 
-    // Reduce rounds
-    const newRounds = (condition.rounds || 0) - 1;
-    
-    // Apply damage if > 0
+    if (!s.bars) s.bars = {};
+
+    // Apply HP damage if > 0
     if (condition.damage > 0) {
       const currentHp = s.bars?.hp || 0;
       s.bars.hp = Math.max(0, currentHp - condition.damage);
     }
 
-    // Remove if rounds reach 0, otherwise update
-    if (newRounds <= 0) {
-      s.effects = s.effects.filter(e => e.id !== conditionId);
-    } else {
-      condition.rounds = newRounds;
+    // Apply drain to resource bar (hp, ether, vigor, inata)
+    const drainType = condition.drainType || "";
+    const drainAmount = Number(condition.drainAmount) || 0;
+    if (drainType && drainAmount > 0) {
+      const barKey = drainType === "hp" ? "hp" : drainType;
+      const current = s.bars[barKey] ?? 0;
+      s.bars[barKey] = Math.max(0, current - drainAmount);
+    }
+
+    const currentRounds = condition.rounds ?? 0;
+    if (currentRounds > 0) {
+      const newRounds = currentRounds - 1;
+      if (newRounds <= 0) {
+        s.effects = s.effects.filter(e => e.id !== conditionId);
+      } else {
+        condition.rounds = newRounds;
+      }
     }
 
     onUpdateSheet(s);
@@ -267,7 +313,8 @@ export default function CharacterSheet({
     alignment: "",
     age: "",
     height: "",
-    weight: ""
+    weight: "",
+    dominantField: ""
   };
 
   return (
@@ -326,6 +373,26 @@ export default function CharacterSheet({
                   className="input-login"
                   placeholder="Ex: Soldado, Erudito..."
                 />
+              </div>
+              <div className="form-group">
+                <label>Campo que domina (magia)</label>
+                <select
+                  value={characterInfo.dominantField || ""}
+                  onChange={(e) => {
+                    const s = JSON.parse(JSON.stringify(sheet));
+                    if (!s.characterInfo) s.characterInfo = {};
+                    s.characterInfo.dominantField = e.target.value;
+                    onUpdateSheet(s);
+                  }}
+                  onBlur={onSave}
+                  className="input-login"
+                >
+                  <option value="">Nenhum</option>
+                  {MAGIC_FIELDS.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+                <div className="muted small" style={{ marginTop: "4px" }}>Magias do mesmo campo custam 30% menos (40% ao nível 13, 50% ao nível 17).</div>
               </div>
               <div className="form-group">
                 <label>Alinhamento</label>
@@ -520,37 +587,157 @@ export default function CharacterSheet({
             <div className="panel stats-panel">
               <h3>Atributos</h3>
               <div className="stats-grid">
-                {Object.entries(sheet.stats || {}).map(([k, v]) => (
-                  <div key={k} className="stat-cell">
-                    <div className="stat-key">{k.toUpperCase()}</div>
+                {Object.entries(sheet.stats || {}).map(([k, v]) => {
+                  const baseVal = Number(v) || 0;
+                  const effVal = Number(effectiveStats[k]) ?? baseVal;
+                  const modDelta = effVal - baseVal;
+                  return (
+                    <div key={k} className="stat-cell">
+                      <div className="stat-key">{k.toUpperCase()}</div>
+                      <input
+                        className="stat-input"
+                        value={v || ""}
+                        onChange={(e) => {
+                          const s = JSON.parse(JSON.stringify(sheet));
+                          if (!s.stats) s.stats = {};
+                          s.stats[k] = e.target.value === "" ? 0 : Number(e.target.value);
+                          onUpdateSheet(s);
+                        }}
+                        onBlur={onSave}
+                      />
+                      {modDelta !== 0 && (
+                        <div className="muted small" style={{ fontSize: "10px", marginTop: "2px" }}>
+                          Efetivo: {effVal} ({modDelta >= 0 ? "+" : ""}{modDelta})
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="ca-display" style={{ marginTop: "20px", padding: "12px", background: "rgba(107, 70, 193, 0.15)", borderRadius: "8px", border: "1px solid rgba(107, 70, 193, 0.3)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  <div style={{ fontWeight: "600", fontSize: "14px" }}>Classe de Armadura (CA)</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ fontSize: "24px", fontWeight: "800", color: "var(--accent-indigo)" }}>
+                      {10 + Math.max(
+                        Math.floor((sheet.stats?.con || 0) / 2),
+                        Math.floor((sheet.stats?.des || 0) / 2)
+                      ) + (Number(sheet.caArmorMod) || 0)}
+                    </div>
+                    <label className="muted" style={{ fontSize: "12px" }}>Mod. armadura</label>
                     <input
-                      className="stat-input"
-                      value={v || ""}
+                      type="number"
+                      className="input-number stat-input"
+                      style={{ width: "56px" }}
+                      value={sheet.caArmorMod ?? ""}
                       onChange={(e) => {
                         const s = JSON.parse(JSON.stringify(sheet));
-                        if (!s.stats) s.stats = {};
-                        s.stats[k] = e.target.value === "" ? 0 : Number(e.target.value);
+                        s.caArmorMod = e.target.value === "" ? 0 : Number(e.target.value);
                         onUpdateSheet(s);
                       }}
                       onBlur={onSave}
+                      placeholder="0"
                     />
-                  </div>
-                ))}
-              </div>
-              <div className="ca-display" style={{ marginTop: "20px", padding: "12px", background: "rgba(107, 70, 193, 0.15)", borderRadius: "8px", border: "1px solid rgba(107, 70, 193, 0.3)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontWeight: "600", fontSize: "14px" }}>Classe de Armadura (CA)</div>
-                  <div style={{ fontSize: "24px", fontWeight: "800", color: "var(--accent-indigo)" }}>
-                    {10 + Math.max(
-                      Math.floor((sheet.stats?.con || 0) / 2),
-                      Math.floor((sheet.stats?.des || 0) / 2)
-                    )}
                   </div>
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
                   Base 10 + max(CON/2: {Math.floor((sheet.stats?.con || 0) / 2)}, DES/2: {Math.floor((sheet.stats?.des || 0) / 2)})
+                  {(Number(sheet.caArmorMod) || 0) !== 0 && ` + armadura ${sheet.caArmorMod >= 0 ? "+" : ""}${sheet.caArmorMod}`}
                 </div>
               </div>
+
+              <h3 className="mt">Modos</h3>
+              <p className="muted small" style={{ marginBottom: "8px" }}>Ative modos para aplicar bônus/penalidade aos atributos (só exibição e rolos).</p>
+              {(sheet.modes || []).map((mode) => (
+                <div key={mode.id} className="mode-row" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+                  <label className="mode-toggle">
+                    <input
+                      type="checkbox"
+                      checked={!!mode.active}
+                      onChange={() => {
+                        const s = JSON.parse(JSON.stringify(sheet));
+                        s.modes = (s.modes || []).map((m) => m.id === mode.id ? { ...m, active: !m.active } : m);
+                        onUpdateSheet(s);
+                        setTimeout(() => onSave(), 0);
+                      }}
+                    />
+                    <span style={{ fontWeight: mode.active ? "600" : "400" }}>{mode.name || "Sem nome"}</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="link-danger small"
+                    onClick={() => {
+                      const s = JSON.parse(JSON.stringify(sheet));
+                      s.modes = (s.modes || []).filter((m) => m.id !== mode.id);
+                      onUpdateSheet(s);
+                      setTimeout(() => onSave(), 0);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {showAddModeForm ? (
+                <div className="add-mode-form" style={{ marginTop: "12px", padding: "12px", background: "rgba(0,0,0,0.2)", borderRadius: "8px" }}>
+                  <input
+                    type="text"
+                    placeholder="Nome do modo"
+                    value={newModeName}
+                    onChange={(e) => setNewModeName(e.target.value)}
+                    className="input-new"
+                    style={{ marginBottom: "8px", width: "100%" }}
+                  />
+                  <div className="muted small" style={{ marginBottom: "6px" }}>Modificadores (deixe 0 ou vazio para não alterar)</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+                    {Object.keys(sheet.stats || {}).map((statKey) => (
+                      <div key={statKey} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <label style={{ fontSize: "12px", minWidth: "28px" }}>{statKey.toUpperCase()}</label>
+                        <input
+                          type="number"
+                          className="input-number"
+                          style={{ width: "52px" }}
+                          value={newModeModifiers[statKey] ?? ""}
+                          onChange={(e) => {
+                            const v = e.target.value === "" ? "" : Number(e.target.value);
+                            setNewModeModifiers((prev) => (v === "" ? { ...prev, [statKey]: undefined } : { ...prev, [statKey]: v }));
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      className="btn-primary small"
+                      onClick={() => {
+                        if (!newModeName.trim()) return;
+                        const s = JSON.parse(JSON.stringify(sheet));
+                        const modifiers = {};
+                        Object.entries(newModeModifiers).forEach(([k, v]) => {
+                          if (v !== undefined && v !== "" && Number(v) !== 0) modifiers[k] = Number(v);
+                        });
+                        s.modes = [...(s.modes || []), { id: Date.now(), name: newModeName.trim(), active: false, modifiers }];
+                        onUpdateSheet(s);
+                        setNewModeName("");
+                        setNewModeModifiers({});
+                        setShowAddModeForm(false);
+                        setTimeout(() => onSave(), 0);
+                      }}
+                      disabled={!newModeName.trim()}
+                    >
+                      Adicionar
+                    </button>
+                    <button type="button" className="btn-danger small" onClick={() => { setShowAddModeForm(false); setNewModeName(""); setNewModeModifiers({}); }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="btn-primary small" onClick={() => setShowAddModeForm(true)}>
+                  + Criar modo
+                </button>
+              )}
             </div>
           </section>
         </div>
@@ -644,6 +831,21 @@ export default function CharacterSheet({
                     min="0"
                   />
                 </div>
+                {newAbility.type === "magia" && (
+                  <div className="form-row" style={{ marginTop: "8px" }}>
+                    <label className="muted small" style={{ width: "100%" }}>Campo da magia</label>
+                    <select
+                      value={newAbility.field || ""}
+                      onChange={(e) => setNewAbility({ ...newAbility, field: e.target.value })}
+                      className="select"
+                    >
+                      <option value="">Selecione</option>
+                      {MAGIC_FIELDS.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="form-actions">
                   <button className="btn-primary" onClick={handleAddAbility}>
                     Adicionar Habilidade
@@ -658,7 +860,8 @@ export default function CharacterSheet({
                         description: "",
                         effect: "",
                         damage: "",
-                        cost: ""
+                        cost: "",
+                        field: ""
                       });
                     }}
                   >
@@ -680,6 +883,7 @@ export default function CharacterSheet({
                   onSave={onSave}
                   onUse={useAbility}
                   sheet={sheet}
+                  getEffectiveCost={getEffectiveCost}
                 />
               ))}
               {otherAbilities.map((a) => (
@@ -693,6 +897,7 @@ export default function CharacterSheet({
                   onSave={onSave}
                   onUse={useAbility}
                   sheet={sheet}
+                  getEffectiveCost={getEffectiveCost}
                 />
               ))}
               {filteredAbilities.length === 0 && !showAddAbilityForm && (
@@ -807,7 +1012,7 @@ export default function CharacterSheet({
                   type="number"
                   value={newEffect.rounds === "" ? "" : newEffect.rounds}
                   onChange={(e) => setNewEffect({ ...newEffect, rounds: e.target.value === "" ? "" : Number(e.target.value) || 0 })}
-                  placeholder="Rodadas" 
+                  placeholder="Rodadas (0 = até remover)" 
                   className="input-number" 
                   min="0"
                 />
@@ -827,6 +1032,28 @@ export default function CharacterSheet({
                   className="input-new" 
                 />
               </div>
+              <div className="form-row">
+                <select
+                  value={newEffect.drainType || ""}
+                  onChange={(e) => setNewEffect({ ...newEffect, drainType: e.target.value })}
+                  className="select"
+                >
+                  <option value="">Dreno por rodada: Nenhum</option>
+                  <option value="hp">HP</option>
+                  <option value="ether">Ether</option>
+                  <option value="vigor">Vigor</option>
+                  <option value="inata">Inata</option>
+                </select>
+                <input 
+                  type="number"
+                  value={newEffect.drainAmount === "" ? "" : newEffect.drainAmount}
+                  onChange={(e) => setNewEffect({ ...newEffect, drainAmount: e.target.value === "" ? "" : Number(e.target.value) || 0 })}
+                  placeholder="Qtd. dreno" 
+                  className="input-number" 
+                  min="0"
+                  disabled={!newEffect.drainType}
+                />
+              </div>
               <button
                 className="btn-primary"
                 onClick={handleAddEffect}
@@ -839,27 +1066,36 @@ export default function CharacterSheet({
               {(sheet.effects || []).map((ef) => {
                 const rounds = ef.rounds !== undefined ? ef.rounds : 0;
                 const damage = ef.damage !== undefined ? ef.damage : 0;
+                const drainType = ef.drainType || "";
+                const drainAmount = Number(ef.drainAmount) || 0;
+                const hasRoundEffect = damage > 0 || (drainType && drainAmount > 0);
+                const drainLabel = { hp: "HP", ether: "Ether", vigor: "Vigor", inata: "Inata" }[drainType];
                 return (
                   <li key={ef.id} className="inventory-item condition-item">
                     <div className="condition-info">
                       <div className="condition-header">
                         <strong>{ef.name}</strong>
-                        {rounds > 0 && (
+                        {rounds > 0 ? (
                           <span className="condition-rounds">({rounds} rodada{rounds !== 1 ? "s" : ""})</span>
+                        ) : (
+                          <span className="condition-rounds">(até remover)</span>
                         )}
                       </div>
                       {ef.description && <div className="condition-description">{ef.description}</div>}
                       {damage > 0 && (
                         <div className="condition-damage">Dano: {damage} por rodada</div>
                       )}
+                      {drainType && drainAmount > 0 && (
+                        <div className="condition-damage">Dreno: {drainAmount} {drainLabel} por rodada</div>
+                      )}
                       {ef.effect && <div className="condition-effect">{ef.effect}</div>}
                     </div>
                     <div className="condition-actions">
-                      {rounds > 0 && (
+                      {hasRoundEffect && (
                         <button
                           className="btn-primary small"
                           onClick={() => applyCondition(ef.id)}
-                          title="Aplicar condição (reduz 1 rodada e aplica dano)"
+                          title={rounds > 0 ? "Aplicar (reduz 1 rodada, dano e dreno)" : "Aplicar (dano e dreno desta rodada)"}
                         >
                           Aplicar
                         </button>

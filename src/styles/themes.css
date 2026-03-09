@@ -13,6 +13,10 @@
   --text-secondary: #9aa3ad;
   --border-color: rgba(255,255,255,0.1);
   --shadow: rgba(2,6,23,0.6);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --focus-ring: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--accent-indigo);
 }
 
 :root[data-theme="light"] {
@@ -29,6 +33,10 @@
   --text-secondary: #64748b;
   --border-color: rgba(15,23,42,0.1);
   --shadow: rgba(0,0,0,0.1);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent-indigo);
 }
 
 /* Base body styling with theme support */

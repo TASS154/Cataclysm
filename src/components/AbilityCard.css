@@ -1,10 +1,15 @@
 .ability-card {
-  padding: 12px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.01);
-  border: 1px solid rgba(255,255,255,0.05);
-  transition: all 0.3s ease;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-color);
+  transition: all 0.25s ease;
   animation: slideIn 0.3s ease;
+}
+
+.ability-card:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.1);
 }
 
 .ability-card.favorite {
@@ -57,6 +62,14 @@
   border: none;
   color: var(--white);
   outline: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: box-shadow 0.2s ease;
+}
+
+.ability-title:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.35);
 }
 
 .favorite-btn {
