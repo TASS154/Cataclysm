@@ -17,6 +17,7 @@ import DiceRoller from "./components/DiceRoller";
 import CharacterSheet from "./components/CharacterSheet";
 import MapView from "./components/MapView";
 import JoinPage from "./pages/JoinPage";
+import RulesPage from "./pages/RulesPage";
 import { UserProvider } from "./context/UserContext";
 import { createSession } from "./services/sessionService";
 import "./RPGPlayerEditor.css";
@@ -54,6 +55,8 @@ const emptySheet = {
   traits: [],
   effects: [],
   notes: "",
+  documents: [],
+  lore: "",
   caArmorMod: 0,
   modes: [],
   diceShortcuts: [],
@@ -95,6 +98,8 @@ function buildUpdatedSheet(found, emptySheet) {
       cost: typeof ability.cost === "number" ? ability.cost : (typeof ability.cost === "string" ? (ability.cost === "" ? 0 : Number(ability.cost) || 0) : 0)
     })),
     traits: found.traits || [],
+    documents: found.documents || [],
+    lore: found.lore != null ? found.lore : "",
     modes: found.modes || [],
     diceShortcuts: found.diceShortcuts || [],
     effects: (found.effects || []).map(effect => ({
@@ -146,41 +151,63 @@ function EditorLayout({
       <div className="container">
         <div className="app-grid">
           <aside className="sidebar">
-            <h2>Fichas de {username}</h2>
-            <div className="controls">
-              <button
-                className="btn-primary fullwidth"
-                onClick={() => {
-                  const n = { ...emptySheet, name: "Nova Ficha " + (characters.length + 1), owner: username };
-                  setSheet(n);
-                  saveSheet(n);
-                }}
-              >
-                + Criar ficha
-              </button>
-              <button
-                className="btn-primary fullwidth"
-                onClick={async () => {
-                  try {
-                    const id = await createSession(username, 20, 15);
-                    navigate("/session/" + id);
-                  } catch (err) {
-                    console.error(err);
-                    alert("Erro ao criar sessão: " + err.message);
-                  }
-                }}
-              >
-                Criar sessão (mapa)
-              </button>
-              <button
-                className="btn-primary fullwidth"
-                onClick={() => navigate("/join")}
-              >
-                Entrar na sessão
-              </button>
-              <button className="btn-danger fullwidth" onClick={handleLogout}>
-                Sair
-              </button>
+            <div className="sidebar-user">
+              <span className="sidebar-username">{username}</span>
+            </div>
+            <nav className="sidebar-nav">
+              <div className="nav-group">
+                <span className="nav-group-label">Fichas</span>
+                <button
+                  className="btn-primary fullwidth"
+                  onClick={() => {
+                    const n = { ...emptySheet, name: "Nova Ficha " + (characters.length + 1), owner: username };
+                    setSheet(n);
+                    saveSheet(n);
+                  }}
+                >
+                  + Nova ficha
+                </button>
+              </div>
+              <div className="nav-group">
+                <span className="nav-group-label">Sessão</span>
+                <button
+                  className="btn-primary fullwidth"
+                  onClick={async () => {
+                    try {
+                      const id = await createSession(username, 20, 15);
+                      navigate("/session/" + id);
+                    } catch (err) {
+                      console.error(err);
+                      alert("Erro ao criar sessão: " + err.message);
+                    }
+                  }}
+                >
+                  Criar sessão
+                </button>
+                <button
+                  className="btn-primary fullwidth"
+                  onClick={() => navigate("/join")}
+                >
+                  Entrar na sessão
+                </button>
+              </div>
+              <div className="nav-group">
+                <button
+                  type="button"
+                  className="btn-outline fullwidth"
+                  onClick={() => navigate("/regras")}
+                >
+                  Regras
+                </button>
+              </div>
+              <div className="nav-group nav-group-end">
+                <button className="btn-danger fullwidth" onClick={handleLogout}>
+                  Sair
+                </button>
+              </div>
+            </nav>
+            <div className="sidebar-list-wrap">
+              <span className="nav-group-label">Suas fichas</span>
               <div className="list-scroll">
                 {loading ? (
                   <div className="muted">Carregando...</div>
@@ -210,6 +237,7 @@ function EditorLayout({
                   ))
                 )}
               </div>
+            </div>
 
               {selectedId && sheet.effects && sheet.effects.length > 0 && (
                 <div className="status-sidebar-section">
@@ -264,7 +292,6 @@ function EditorLayout({
                   </div>
                 </div>
               )}
-            </div>
           </aside>
 
           <main className="editor">
@@ -520,11 +547,10 @@ export default function RPGPlayerEditor() {
     setCharacters([]);
   };
 
-  // Render Login
+  // Quando não logado: /regras é pública; demais rotas mostram login
   if (!isLoggedIn) {
-    return (
+    const loginForm = (
       <div className="login-container">
-        <ThemeToggle theme={theme} onToggle={toggleTheme} />
         <div className="login-panel">
           <h2>Login</h2>
           <form onSubmit={handleLogin}>
@@ -552,9 +578,25 @@ export default function RPGPlayerEditor() {
             <button type="submit" className="btn-primary fullwidth">
               Entrar
             </button>
+            <button
+              type="button"
+              className="btn-outline fullwidth login-regras"
+              onClick={() => navigate("/regras")}
+            >
+              Ler regras do sistema
+            </button>
           </form>
         </div>
       </div>
+    );
+    return (
+      <UserProvider username={username}>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        <Routes>
+          <Route path="/regras" element={<RulesPage />} />
+          <Route path="*" element={loginForm} />
+        </Routes>
+      </UserProvider>
     );
   }
 
@@ -579,8 +621,9 @@ export default function RPGPlayerEditor() {
     <UserProvider username={username}>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
       <Routes>
+        <Route path="/regras" element={<RulesPage />} />
         <Route path="/" element={<EditorLayout sessionId={null} {...editorLayoutProps} />} />
-        <Route path="/session/:sessionId" element={<SessionLayoutWrapper />} />
+        <Route path="/session/:sessionId" element={<SessionLayoutWrapper {...editorLayoutProps} />} />
         <Route path="/join" element={<JoinPage />} />
       </Routes>
     </UserProvider>

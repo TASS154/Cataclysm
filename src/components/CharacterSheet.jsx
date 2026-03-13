@@ -51,6 +51,19 @@ export default function CharacterSheet({
   const [showAddModeForm, setShowAddModeForm] = useState(false);
   const [newModeName, setNewModeName] = useState("");
   const [newModeModifiers, setNewModeModifiers] = useState({});
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [showLoreModal, setShowLoreModal] = useState(false);
+  const [editingDocumentId, setEditingDocumentId] = useState(null);
+
+  const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+  const getDocumentContent = (doc) => {
+    if (doc.content != null && doc.content !== "") return doc.content;
+    if (doc.items && doc.items.length) {
+      return doc.items.map((it) => (it.checked ? "[x] " : "[ ] ") + (it.label || "")).join("\n");
+    }
+    return "";
+  };
 
   useEffect(() => {
     localStorage.setItem(`activeTab-${characterId}`, activeTab);
@@ -1122,17 +1135,141 @@ export default function CharacterSheet({
 
       {activeTab === "notes" && (
         <div className="tab-content">
-          <div className="panel">
+          <div className="panel notes-panel">
             <h3>Anotações</h3>
+            <div className="notes-actions">
+              <button
+                type="button"
+                className="btn-primary notes-action-btn"
+                onClick={() => setShowDocumentsModal(true)}
+              >
+                📋 Documentos
+              </button>
+              <button
+                type="button"
+                className="btn-primary notes-action-btn"
+                onClick={() => setShowLoreModal(true)}
+              >
+                📜 Lore
+              </button>
+            </div>
             <textarea
               className="notes-textarea"
               value={sheet.notes || ""}
               onChange={(e) => onUpdateSheet({ ...sheet, notes: e.target.value })}
               onBlur={onSave}
               placeholder="Anotações sobre o personagem..."
-              rows="15"
+              rows="12"
             />
           </div>
+
+          {/* Modal Documentos — lista (ícone + título) → ao abrir: editor de texto */}
+          {showDocumentsModal && (
+            <div className="modal-overlay" onClick={() => { setShowDocumentsModal(false); setEditingDocumentId(null); onSave(); }}>
+              <div className={`modal-content notes-modal notes-modal-docs ${editingDocumentId ? "notes-modal-docs-editing" : ""}`} onClick={e => e.stopPropagation()}>
+                {editingDocumentId === null ? (
+                  <>
+                    <div className="notes-modal-header">
+                      <h3>Documentos</h3>
+                      <button type="button" className="modal-close" onClick={() => { setShowDocumentsModal(false); onSave(); }} aria-label="Fechar">×</button>
+                    </div>
+                    <p className="notes-modal-hint">Clique em um documento para abrir o editor e escrever ou editar o texto.</p>
+                    <div className="documents-grid">
+                      {(sheet.documents || []).map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          className="document-tile"
+                          onClick={() => setEditingDocumentId(doc.id)}
+                        >
+                          <span className="document-tile-icon">📄</span>
+                          <span className="document-tile-title">{doc.title || "Sem título"}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-outline fullwidth notes-add-doc"
+                      onClick={() => {
+                        const newDoc = { id: genId(), title: "Novo documento", content: "" };
+                        onUpdateSheet({ ...sheet, documents: [...(sheet.documents || []), newDoc] });
+                        setEditingDocumentId(newDoc.id);
+                      }}
+                    >
+                      + Novo documento
+                    </button>
+                  </>
+                ) : (() => {
+                  const doc = (sheet.documents || []).find((d) => d.id === editingDocumentId);
+                  if (!doc) return setEditingDocumentId(null);
+                  const displayContent = doc.content != null && doc.content !== "" ? doc.content : getDocumentContent(doc);
+                  return (
+                    <>
+                      <div className="notes-modal-header document-editor-header">
+                        <button type="button" className="document-back" onClick={() => { setEditingDocumentId(null); onSave(); }}>
+                          ← Voltar
+                        </button>
+                        <input
+                          type="text"
+                          className="document-editor-title"
+                          value={doc.title || ""}
+                          onChange={(e) => {
+                            const docs = (sheet.documents || []).map((d) => (d.id === doc.id ? { ...d, title: e.target.value } : d));
+                            onUpdateSheet({ ...sheet, documents: docs });
+                          }}
+                          onBlur={onSave}
+                          placeholder="Título do documento"
+                        />
+                        <button
+                          type="button"
+                          className="btn-danger small document-remove"
+                          onClick={() => {
+                            onUpdateSheet({ ...sheet, documents: (sheet.documents || []).filter((d) => d.id !== doc.id) });
+                            setEditingDocumentId(null);
+                            onSave();
+                          }}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                      <textarea
+                        className="document-editor-textarea"
+                        value={displayContent}
+                        onChange={(e) => {
+                          const docs = (sheet.documents || []).map((d) =>
+                            d.id === doc.id ? { ...d, content: e.target.value } : d
+                          );
+                          onUpdateSheet({ ...sheet, documents: docs });
+                        }}
+                        onBlur={onSave}
+                        placeholder="Escreva ou edite o texto do documento..."
+                      />
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Modal Lore — grande */}
+          {showLoreModal && (
+            <div className="modal-overlay notes-modal-overlay-lore" onClick={() => { setShowLoreModal(false); onSave(); }}>
+              <div className="modal-content notes-modal notes-modal-lore" onClick={e => e.stopPropagation()}>
+                <div className="notes-modal-header">
+                  <h3>Lore</h3>
+                  <button type="button" className="modal-close" onClick={() => { setShowLoreModal(false); onSave(); }} aria-label="Fechar">×</button>
+                </div>
+                <p className="notes-modal-hint">História, mundo e informações de lore do seu personagem ou da mesa.</p>
+                <textarea
+                  className="notes-lore-textarea"
+                  value={sheet.lore || ""}
+                  onChange={(e) => onUpdateSheet({ ...sheet, lore: e.target.value })}
+                  onBlur={onSave}
+                  placeholder="Escreva aqui a lore..."
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

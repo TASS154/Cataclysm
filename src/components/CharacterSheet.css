@@ -64,6 +64,254 @@
   box-shadow: var(--focus-ring);
 }
 
+/* Anotações: botões Documentos e Lore */
+.notes-panel h3 {
+  margin-bottom: 12px;
+}
+
+.notes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.notes-action-btn {
+  padding: 10px 16px;
+  font-size: 14px;
+}
+
+/* Modais Anotações */
+.notes-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.notes-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.notes-modal-hint {
+  margin: 0 0 14px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.notes-modal {
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.notes-modal-docs {
+  max-width: 640px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-modal-docs-editing {
+  max-width: 720px;
+  width: 95vw;
+  height: 85vh;
+  min-height: 400px;
+}
+
+/* Documentos: grid de tiles (ícone + título); ao clicar abre editor */
+.documents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 120px;
+}
+
+.document-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  text-align: center;
+}
+
+.document-tile:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-indigo);
+  transform: translateY(-2px);
+}
+
+.document-tile-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.document-tile-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.notes-add-doc {
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+/* Editor de documento (ao abrir um tile) */
+.document-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.document-back {
+  background: none;
+  border: none;
+  color: var(--accent-indigo);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0;
+  flex-shrink: 0;
+}
+
+.document-back:hover {
+  text-decoration: underline;
+}
+
+.document-editor-title {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 15px;
+  outline: none;
+}
+
+.document-editor-title:focus {
+  border-color: var(--accent-indigo);
+}
+
+.document-editor-textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 320px;
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.document-editor-textarea:focus {
+  border-color: var(--accent-indigo);
+  box-shadow: var(--focus-ring);
+}
+
+.notes-modal-docs .document-remove {
+  flex-shrink: 0;
+}
+
+/* Modal Lore — grande (lore costuma ser enorme) */
+.notes-modal-overlay-lore {
+  align-items: stretch;
+  padding: 20px;
+}
+
+.notes-modal-lore {
+  max-width: 100%;
+  width: 95vw;
+  max-width: 1000px;
+  height: 90vh;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-modal-lore .notes-modal-hint {
+  flex-shrink: 0;
+}
+
+.notes-lore-textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 400px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.notes-lore-textarea:focus {
+  border-color: var(--accent-indigo);
+  box-shadow: var(--focus-ring);
+}
+
+@media (max-width: 768px) {
+  .notes-modal-overlay-lore {
+    padding: 12px;
+  }
+  .notes-modal-lore {
+    width: 100%;
+    height: 85vh;
+  }
+  .notes-lore-textarea {
+    min-height: 300px;
+  }
+}
+
 .empty-state {
   text-align: center;
   padding: 32px 20px;
