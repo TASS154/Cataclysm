@@ -40,8 +40,9 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const [showGmAddToken, setShowGmAddToken] = useState(false);
   const [showGmSettings, setShowGmSettings] = useState(false);
   const [gmTokenName, setGmTokenName] = useState("");
-  const [gmAddAtX, setGmAddAtX] = useState(0);
-  const [gmAddAtY, setGmAddAtY] = useState(0);
+  // Mantém como string para permitir digitação no mobile sem "pular" para 0.
+  const [gmAddAtX, setGmAddAtX] = useState("0");
+  const [gmAddAtY, setGmAddAtY] = useState("0");
   const [editMapW, setEditMapW] = useState("");
   const [editMapH, setEditMapH] = useState("");
   const [editBgUrl, setEditBgUrl] = useState("");
@@ -135,8 +136,8 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       color: gmTokenColor,
     });
     setGmTokenName("");
-    setGmAddAtX(Math.floor(session.mapWidth / 2));
-    setGmAddAtY(Math.floor(session.mapHeight / 2));
+    setGmAddAtX(String(Math.floor(session.mapWidth / 2)));
+    setGmAddAtY(String(Math.floor(session.mapHeight / 2)));
     setShowGmAddToken(false);
   };
 
@@ -302,10 +303,13 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     return isGM || token.ownerUsername === username;
   };
 
-  const handleTokenMouseDown = (e, token) => {
+  const activePointerIdRef = useRef(null);
+
+  const handleTokenPointerDown = (e, token) => {
     if (rulerMode || areaTool) return;
     if (!canMoveToken(token)) return;
     e.preventDefault();
+    activePointerIdRef.current = e.pointerId;
     const x = Math.max(0, Math.min((session?.mapWidth ?? 20) - 1, Number(token.x) || 0));
     const y = Math.max(0, Math.min((session?.mapHeight ?? 15) - 1, Number(token.y) || 0));
     dragEndPosRef.current = { x, y };
@@ -325,6 +329,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     const mapH = session.mapHeight || 15;
 
     const onMove = (e) => {
+      if (activePointerIdRef.current != null && e.pointerId != null && e.pointerId !== activePointerIdRef.current) return;
       const el = mapRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -336,17 +341,21 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       setDragging((d) => ({ ...d, gridX: x, gridY: y }));
     };
 
-    const onUp = () => {
+    const onUp = (e) => {
+      if (activePointerIdRef.current != null && e?.pointerId != null && e.pointerId !== activePointerIdRef.current) return;
       const { x, y } = dragEndPosRef.current;
       updateTokenPosition(sessionId, tokenIdToUpdate, { x, y }).catch(console.error);
       setDragging({ tokenId: null, startX: 0, startY: 0, gridX: 0, gridY: 0 });
+      activePointerIdRef.current = null;
     };
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
   }, [dragging.tokenId, sessionId, session, tokens]);
 
@@ -389,7 +398,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
             height: cellSize - pad * 2,
             backgroundColor: token.color || "#6b7280",
           }}
-          onMouseDown={(e) => handleTokenMouseDown(e, token)}
+          onPointerDown={(e) => handleTokenPointerDown(e, token)}
           onContextMenu={(e) => {
             if (!isGM) return;
             e.preventDefault();
@@ -468,7 +477,8 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                   min={0}
                   max={gridW - 1}
                   value={gmAddAtX}
-                  onChange={(e) => setGmAddAtX(Number(e.target.value) || 0)}
+                  inputMode="numeric"
+                  onChange={(e) => setGmAddAtX(e.target.value)}
                 />
               </div>
               <div className="form-group">
@@ -479,7 +489,8 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                   min={0}
                   max={gridH - 1}
                   value={gmAddAtY}
-                  onChange={(e) => setGmAddAtY(Number(e.target.value) || 0)}
+                  inputMode="numeric"
+                  onChange={(e) => setGmAddAtY(e.target.value)}
                 />
               </div>
               <button type="submit" className="btn-primary fullwidth">Colocar</button>
@@ -579,7 +590,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         </button>
         {isGM && (
           <>
-            <button type="button" className="btn-primary" onClick={() => { setGmAddAtX(Math.floor(gridW / 2)); setGmAddAtY(Math.floor(gridH / 2)); setShowGmAddToken(true); }}>
+            <button type="button" className="btn-primary" onClick={() => { setGmAddAtX(String(Math.floor(gridW / 2))); setGmAddAtY(String(Math.floor(gridH / 2))); setShowGmAddToken(true); }}>
               Adicionar token
             </button>
             <button type="button" className="btn-primary" onClick={openGmSettings}>

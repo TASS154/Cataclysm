@@ -445,22 +445,26 @@ export default function RPGPlayerEditor() {
   // Login Handling
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!username || !password) {
+    const u = (username || "").trim();
+    const p = password || "";
+    if (!u || !p) {
       setLoginError("Por favor, preencha nome de usuário e senha.");
       return;
     }
 
     try {
-      const userRef = doc(db, "users", username);
-      const userQuery = query(collection(db, "users"), where("username", "==", username));
+      // Normaliza username para evitar espaços no início/fim.
+      if (u !== username) setUsername(u);
+      const userRef = doc(db, "users", u);
+      const userQuery = query(collection(db, "users"), where("username", "==", u));
       const userSnapshot = await onSnapshot(userQuery, async (snap) => {
         if (snap.empty) {
-          await setDoc(userRef, { username, password });
+          await setDoc(userRef, { username: u, password: p });
           setIsLoggedIn(true);
           setLoginError("");
         } else {
           const userData = snap.docs[0].data();
-          if (userData.password === password) {
+          if (userData.password === p) {
             setIsLoggedIn(true);
             setLoginError("");
           } else {
@@ -517,7 +521,11 @@ export default function RPGPlayerEditor() {
 
   const saveSheet = async (s) => {
     try {
-      const copy = { ...s, owner: username };
+      const copy = {
+        ...s,
+        owner: username,
+        name: typeof s?.name === "string" ? s.name.trim() : s?.name,
+      };
       if (!copy.id) {
         const ref = await addDoc(collection(db, `users/${username}/characters`), copy);
         setSelectedId(ref.id);
