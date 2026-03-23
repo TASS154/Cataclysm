@@ -27,7 +27,9 @@ export default function CharacterSheet({
   onUpdateSheet, 
   onSave,
   username,
-  characterId 
+  characterId,
+  onRequestRest,
+  onActivateFocus
 }) {
   const effectiveStats = effectiveStatsProp || sheet.stats || {};
   const [activeTab, setActiveTab] = useState(() => {
@@ -338,6 +340,32 @@ export default function CharacterSheet({
         <div className="tab-content">
           <div className="panel">
             <h3>Informações do Personagem</h3>
+            <div className="form-group" style={{ marginBottom: "12px" }}>
+              <label>{sheet.focusType === "certainty" ? "Certeza" : "Inspiração"}</label>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  className="input-login"
+                  readOnly
+                  value={`${Number(sheet.focusPoints) || 0}${sheet.focusType === "inspiration" ? " / 3" : " / 1"}`}
+                  style={{ opacity: 0.85 }}
+                />
+                <button
+                  type="button"
+                  className="btn-primary small"
+                  onClick={() => onActivateFocus && onActivateFocus()}
+                  disabled={(Number(sheet.focusPoints) || 0) <= 0}
+                  title={sheet.focusType === "certainty" ? "Usar Certeza (19 automático no próximo d20)" : "Usar Inspiração (vantagem no próximo d20)"}
+                >
+                  Usar
+                </button>
+              </div>
+              <div className="muted small" style={{ marginTop: "4px" }}>
+                {sheet.focusType === "certainty"
+                  ? "Enquanto houver Certeza, descanso longo não gera Inspiração."
+                  : "Inspiração concede vantagem em uma ação (próximo d20)."}
+              </div>
+            </div>
             <div className="character-info-form">
               <div className="form-group">
                 <label>Classe</label>
@@ -947,6 +975,16 @@ export default function CharacterSheet({
       {activeTab === "status" && (
         <div className="tab-content">
           <div className="panel">
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
+              <button
+                type="button"
+                className="btn-primary small"
+                onClick={() => onRequestRest && onRequestRest()}
+                title="Descanso curto ou longo"
+              >
+                Descanso
+              </button>
+            </div>
             <h3>Traços</h3>
             <div className="trait-add">
               <input 

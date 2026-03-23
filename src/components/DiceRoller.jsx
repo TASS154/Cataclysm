@@ -8,7 +8,8 @@ export default function DiceRoller({
   effectiveStats,
   onUpdateSheet,
   username, 
-  onRollComplete 
+  onRollComplete,
+  onConsumePendingRollPower
 }) {
   const stats = effectiveStats || sheet?.stats || {};
   const shortcuts = sheet?.diceShortcuts || [];
@@ -28,6 +29,7 @@ export default function DiceRoller({
   const [activeTab, setActiveTab] = useState("roll");
   const [rollHistory, setRollHistory] = useState([]);
   const [historyFilter, setHistoryFilter] = useState("");
+  const pendingRollPower = sheet?.pendingRollPower || null;
   const flashTimer = useRef(null);
   const haloTimer = useRef(null);
 
@@ -48,6 +50,45 @@ export default function DiceRoller({
 
   const roll = (type = diceType, count = diceCount) => {
     const sides = dieSides[type] || 20;
+    const isSingleD20 = sides === 20 && Number(count) === 1;
+    if (pendingRollPower && !isSingleD20) {
+      alert("Inspiração/Certeza é aplicada em uma rolagem única de d20.");
+      return;
+    }
+    if (pendingRollPower === "inspiration" && isSingleD20) {
+      rollAdvantageDisadvantage(true, true);
+      return;
+    }
+    if (pendingRollPower === "certainty" && isSingleD20) {
+      const attrMod = selectedModAttr === "puro" ? 0 : stats[selectedModAttr] || 0;
+      const totalMod = attrMod + Number(manualMod || 0);
+      const raw = 19;
+      const total = raw + totalMod;
+      const results = [{ raw, mod: totalMod, total }];
+      setRollResults(results);
+      setLastRollTotal(total);
+      setHaloIndices([{ index: 0, color: "green" }]);
+      setHighlightedResult(0);
+      triggerFullFlash("green");
+      if (username) {
+        saveRollToHistory(username, {
+          diceString: "Certeza (19 automático)",
+          results: [raw],
+          modifier: totalMod,
+          total,
+          attribute: selectedModAttr,
+          manualMod: Number(manualMod || 0),
+        });
+      }
+      if (onRollComplete) {
+        onRollComplete({ results, total, diceString: "Certeza (19 automático)" });
+      }
+      if (onConsumePendingRollPower) onConsumePendingRollPower("certainty");
+      clearTimeout(haloTimer.current);
+      haloTimer.current = setTimeout(() => setHaloIndices([]), 1200);
+      return;
+    }
+
     const results = [];
     const haloIndices = [];
 
@@ -87,6 +128,7 @@ export default function DiceRoller({
     if (onRollComplete) {
       onRollComplete({ results, total: totalSum, diceString: `${count}${type}` });
     }
+    if (pendingRollPower && onConsumePendingRollPower) onConsumePendingRollPower(pendingRollPower);
     
     if (haloIndices.length > 0) {
       clearTimeout(haloTimer.current);
@@ -95,6 +137,10 @@ export default function DiceRoller({
   };
 
   const rollShortcut = (shortcut) => {
+    if (pendingRollPower) {
+      alert("Inspiração/Certeza não é aplicada em atalho. Use uma rolagem única de d20.");
+      return;
+    }
     const attrMod = (shortcut.modifierAttr && shortcut.modifierAttr !== "puro") ? (stats[shortcut.modifierAttr] || 0) : 0;
     const out = rollDiceString(shortcut.diceString || "1d20", attrMod);
     if (!out) {
@@ -145,7 +191,7 @@ export default function DiceRoller({
     onUpdateSheet({ ...sheet, diceShortcuts: shortcuts.filter((s) => s.id !== id) });
   };
 
-  const rollAdvantageDisadvantage = (isAdvantage) => {
+  const rollAdvantageDisadvantage = (isAdvantage, forceConsume = false) => {
     const a = [rollDie(20), rollDie(20)];
     const haloIndices = [];
     a.forEach((r, i) => {
@@ -175,6 +221,9 @@ export default function DiceRoller({
         manualMod: 0
       });
     }
+    if ((forceConsume || pendingRollPower) && onConsumePendingRollPower) {
+      onConsumePendingRollPower(pendingRollPower || "inspiration");
+    }
     
     if (haloIndices.length > 0) {
       clearTimeout(haloTimer.current);
@@ -183,6 +232,10 @@ export default function DiceRoller({
   };
 
   const rollInitiative = () => {
+    if (pendingRollPower) {
+      alert("Inspiração/Certeza não é aplicada na rolagem de iniciativa.");
+      return;
+    }
     const result = rollDie(20);
     setRollResults([{ raw: result, mod: 0, total: result }]);
     setLastRollTotal(result);
@@ -257,6 +310,13 @@ export default function DiceRoller({
       {activeTab === "roll" && (
         <div className="dice-panel">
           <h3>Rolo de dados</h3>
+        {pendingRollPower && (
+          <div className="muted small" style={{ marginBottom: "8px" }}>
+            {pendingRollPower === "certainty"
+              ? "Certeza ativa: a próxima rolagem de 1d20 será 19 automático."
+              : "Inspiração ativa: a próxima rolagem de 1d20 será com vantagem."}
+          </div>
+        )}
         <div className="dice-controls">
           <select className="select" value={diceType} onChange={(e) => setDiceType(e.target.value)}>
             {Object.keys(dieSides).map((k) => (

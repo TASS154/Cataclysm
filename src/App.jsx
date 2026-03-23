@@ -60,6 +60,9 @@ const emptySheet = {
   caArmorMod: 0,
   modes: [],
   diceShortcuts: [],
+  focusType: "inspiration", // "inspiration" | "certainty"
+  focusPoints: 0,
+  pendingRollPower: null, // null | "inspiration" | "certainty"
   createdAt: Date.now(),
   owner: "",
 };
@@ -102,6 +105,9 @@ function buildUpdatedSheet(found, emptySheet) {
     lore: found.lore != null ? found.lore : "",
     modes: found.modes || [],
     diceShortcuts: found.diceShortcuts || [],
+    focusType: found.focusType === "certainty" ? "certainty" : "inspiration",
+    focusPoints: Number(found.focusPoints) || 0,
+    pendingRollPower: found.pendingRollPower || null,
     effects: (found.effects || []).map(effect => ({
       ...effect,
       rounds: effect.rounds !== undefined ? effect.rounds : 0,
@@ -111,6 +117,81 @@ function buildUpdatedSheet(found, emptySheet) {
       drainAmount: effect.drainAmount !== undefined ? effect.drainAmount : 0
     })),
   };
+}
+
+function getBarMaxes(sheet) {
+  const level = Number(sheet.level) || 1;
+  return {
+    hp: Number(sheet?.bars?.maxHp) || Number(sheet?.bars?.hp) || 0,
+    inata: Number(sheet?.bars?.maxInata) || level * 200,
+    ether: Number(sheet?.bars?.maxEther) || level * 100,
+    vigor: Number(sheet?.bars?.maxVigor) || level * 50,
+  };
+}
+
+function isCharacterHealthyForLongRest(sheet) {
+  const maxes = getBarMaxes(sheet);
+  const bars = sheet?.bars || {};
+  const hasIncompleteBar =
+    (Number(bars.hp) || 0) < maxes.hp ||
+    (Number(bars.inata) || 0) < maxes.inata ||
+    (Number(bars.ether) || 0) < maxes.ether ||
+    (Number(bars.vigor) || 0) < maxes.vigor;
+  const hasNegativeStates = Array.isArray(sheet?.effects) && sheet.effects.length > 0;
+  return !hasIncompleteBar && !hasNegativeStates;
+}
+
+function applyShortRest(sheet) {
+  const s = JSON.parse(JSON.stringify(sheet));
+  if (!s.bars) s.bars = {};
+  const maxes = getBarMaxes(s);
+  const current = {
+    hp: Number(s.bars.hp) || 0,
+    inata: Number(s.bars.inata) || 0,
+    ether: Number(s.bars.ether) || 0,
+    vigor: Number(s.bars.vigor) || 0,
+  };
+  s.bars.hp = Math.min(maxes.hp, current.hp + Math.ceil(maxes.hp / 2));
+  s.bars.inata = Math.min(maxes.inata, current.inata + Math.ceil(maxes.inata / 2));
+  s.bars.ether = Math.min(maxes.ether, current.ether + Math.ceil(maxes.ether / 2));
+  s.bars.vigor = Math.min(maxes.vigor, current.vigor + Math.ceil(maxes.vigor / 2));
+  return s;
+}
+
+function applyLongRest(sheet) {
+  const s = JSON.parse(JSON.stringify(sheet));
+  if (!s.bars) s.bars = {};
+  const maxes = getBarMaxes(s);
+  const healthyBeforeRest = isCharacterHealthyForLongRest(s);
+
+  if (!healthyBeforeRest) {
+    s.bars.hp = maxes.hp;
+    s.bars.inata = maxes.inata;
+    s.bars.ether = maxes.ether;
+    s.bars.vigor = maxes.vigor;
+    s.effects = [];
+    return s;
+  }
+
+  if (s.focusType === "certainty" && Number(s.focusPoints) > 0) {
+    return s;
+  }
+
+  s.focusType = "inspiration";
+  const current = Number(s.focusPoints) || 0;
+  const next = Math.min(3, current + 1);
+  s.focusPoints = next;
+
+  if (next >= 3) {
+    const convert = window.confirm(
+      "Você chegou a 3 Inspirações.\nDeseja converter agora para 1 Certeza?\n\nOK = Converter | Cancelar = Manter 3 Inspirações"
+    );
+    if (convert) {
+      s.focusType = "certainty";
+      s.focusPoints = 1;
+    }
+  }
+  return s;
 }
 
 function useIsMobile(breakpoint = 980) {
@@ -142,6 +223,8 @@ function EditorLayout({
   navigate,
   contentTab,
   setContentTab,
+  onRequestRest,
+  onActivateFocus,
 }) {
   const effectiveStats = useMemo(() => getEffectiveStats(sheet), [sheet]);
   const isMobile = useIsMobile(980);
@@ -379,6 +462,8 @@ function EditorLayout({
                     onSave={() => saveSheet(sheet)}
                     username={username}
                     characterId={selectedId}
+                    onRequestRest={onRequestRest}
+                    onActivateFocus={onActivateFocus}
                   />
                 )}
                 {isMobile && mobileContentTab === "dice" && (
@@ -390,6 +475,12 @@ function EditorLayout({
                       username={username}
                       onRollComplete={(rollData) => {
                         console.log("Roll completed:", rollData);
+                      }}
+                      onConsumePendingRollPower={(power) => {
+                        if (!power) return;
+                        const next = { ...sheet, pendingRollPower: null };
+                        setSheet(next);
+                        setTimeout(() => saveSheet(next), 0);
                       }}
                     />
                   </div>
@@ -409,6 +500,12 @@ function EditorLayout({
                 username={username}
                 onRollComplete={(rollData) => {
                   console.log("Roll completed:", rollData);
+                }}
+                onConsumePendingRollPower={(power) => {
+                  if (!power) return;
+                  const next = { ...sheet, pendingRollPower: null };
+                  setSheet(next);
+                  setTimeout(() => saveSheet(next), 0);
                 }}
               />
             </aside>
@@ -546,6 +643,35 @@ export default function RPGPlayerEditor() {
     setSheet({ ...emptySheet, owner: username });
   };
 
+  const requestRest = () => {
+    const isLong = window.confirm(
+      "Escolha o tipo de descanso:\n\nOK = Descanso Longo\nCancelar = Descanso Curto"
+    );
+    const next = isLong ? applyLongRest(sheet) : applyShortRest(sheet);
+    setSheet(next);
+    setTimeout(() => saveSheet(next), 0);
+  };
+
+  const activateFocusForNextAction = () => {
+    const focusType = sheet?.focusType === "certainty" ? "certainty" : "inspiration";
+    const points = Number(sheet?.focusPoints) || 0;
+    if (points <= 0) {
+      alert("Você não tem Inspiração/Certeza disponível.");
+      return;
+    }
+
+    const next = JSON.parse(JSON.stringify(sheet));
+    next.pendingRollPower = focusType;
+    if (focusType === "certainty") {
+      next.focusType = "inspiration";
+      next.focusPoints = 0;
+    } else {
+      next.focusPoints = Math.max(0, points - 1);
+    }
+    setSheet(next);
+    setTimeout(() => saveSheet(next), 0);
+  };
+
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUsername("");
@@ -623,6 +749,8 @@ export default function RPGPlayerEditor() {
     navigate,
     contentTab,
     setContentTab,
+    onRequestRest: requestRest,
+    onActivateFocus: activateFocusForNextAction,
   };
 
   return (

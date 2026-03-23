@@ -112,4 +112,21 @@ export const rulesSections = [
       "Ao estudar, você pode aprender habilidades novas, pedaços de Lore ou me fazer 1-3 perguntas sobre qualquer coisa, responderei de acordo com o assunto estudado e local (quanto mais tempo estudado, mais informação crítica é extraída, mínimo 1h).",
     ],
   },
+  {
+    id: "maestria",
+    title: "11. Maestria",
+    content: [
+      "Maestria é uma passiva permanente que pode ser obtida após o nível 25, mediante a conclusão de uma questline específica ligada à área escolhida (arma, atributo inicial, magia, inata ou arte divina).",
+      "Ela representa o domínio absoluto do personagem naquele aspecto, concedendo bônus fixos em testes relacionados, redução de custo de recursos e uma margem de erro de 2, além de permitir maior liberdade de improviso, onde o jogador pode aplicar e adaptar seu poder além das habilidades descritas, desde que respeite o conceito e a coerência narrativa.",
+    ],
+  },
+  {
+    id: "descanso-longo",
+    title: "12. Descanso Longo",
+    content: [
+      "Descanso longo restaura totalmente o personagem caso ele esteja com qualquer barra incompleta (Vida, Ether, Vigor ou PE) ou sob efeito de algum estado negativo, removendo todos os estados e recuperando todos os recursos.",
+      "Caso o personagem esteja completamente saudável e sem estados, ele não recebe cura, mas ganha uma Inspiração, que concede vantagem em uma ação e é válida até o fim da próxima batalha, podendo acumular até três.",
+      "Ao atingir três Inspirações, o jogador pode optar imediatamente por convertê-las em uma Certeza, que garante o acerto de uma ação até o fim da próxima batalha, sendo que essa conversão só pode ocorrer no momento em que a terceira Inspiração é obtida.",
+    ],
+  },
 ];
