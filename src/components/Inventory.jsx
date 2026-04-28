@@ -1,15 +1,53 @@
 import React, { useState, useEffect } from "react";
 import "./Inventory.css";
 
-export default function Inventory({ 
-  inventory, 
+const DEFAULT_EQUIPMENT = {
+  armorMode: "set",
+  armorSet: { name: "", notes: "" },
+  armorPieces: {
+    head: "",
+    chest: "",
+    hands: "",
+    legs: "",
+    feet: "",
+    accessory: "",
+  },
+  weapons: [],
+  carried: [],
+};
+
+const EQUIPMENT_SLOT_LABELS = {
+  head: "Cabeça",
+  chest: "Peitoral",
+  hands: "Mãos",
+  legs: "Pernas",
+  feet: "Pés",
+  accessory: "Acessório",
+};
+
+export default function Inventory({
+  inventory,
+  equipment,
   coins,
-  onUpdateInventory, 
+  onUpdateInventory,
+  onUpdateEquipment,
   onUpdateCoins,
   onSave,
-  characterId,
-  username 
 }) {
+  const normalizedEquipment = {
+    ...DEFAULT_EQUIPMENT,
+    ...(equipment || {}),
+    armorSet: {
+      ...DEFAULT_EQUIPMENT.armorSet,
+      ...(equipment?.armorSet || {}),
+    },
+    armorPieces: {
+      ...DEFAULT_EQUIPMENT.armorPieces,
+      ...(equipment?.armorPieces || {}),
+    },
+    weapons: Array.isArray(equipment?.weapons) ? equipment.weapons : [],
+    carried: Array.isArray(equipment?.carried) ? equipment.carried : [],
+  };
   const [editingIndex, setEditingIndex] = useState(null);
   const [editItem, setEditItem] = useState({ name: "", quantity: 1, description: "", tags: [] });
   const [filterTag, setFilterTag] = useState("");
@@ -146,8 +184,177 @@ export default function Inventory({
     return true;
   });
 
+  const updateEquipment = (patch) => {
+    onUpdateEquipment({
+      ...normalizedEquipment,
+      ...patch,
+    });
+    setTimeout(() => onSave(), 0);
+  };
+
+  const updateArmorSet = (patch) => {
+    updateEquipment({
+      armorSet: {
+        ...normalizedEquipment.armorSet,
+        ...patch,
+      },
+    });
+  };
+
+  const updateArmorPiece = (pieceKey, value) => {
+    updateEquipment({
+      armorPieces: {
+        ...normalizedEquipment.armorPieces,
+        [pieceKey]: value,
+      },
+    });
+  };
+
+  const addEquipItem = (field) => {
+    const arr = normalizedEquipment[field] || [];
+    const next = [...arr, { id: Date.now() + Math.random(), name: "", notes: "", equipped: true }];
+    updateEquipment({ [field]: next });
+  };
+
+  const updateEquipItem = (field, id, patch) => {
+    const arr = normalizedEquipment[field] || [];
+    const next = arr.map((it) => (it.id === id ? { ...it, ...patch } : it));
+    updateEquipment({ [field]: next });
+  };
+
+  const removeEquipItem = (field, id) => {
+    const arr = normalizedEquipment[field] || [];
+    updateEquipment({ [field]: arr.filter((it) => it.id !== id) });
+  };
+
   return (
-    <div className="inventory-panel">
+    <div className="inventory-panel inventory-panel--expanded">
+      <div className="panel equipment-panel">
+        <h4>Equipamentos</h4>
+        <div className="equipment-mode-row">
+          <label>Armadura</label>
+          <select
+            className="select equipment-mode-select"
+            value={normalizedEquipment.armorMode}
+            onChange={(e) => updateEquipment({ armorMode: e.target.value })}
+          >
+            <option value="set">Set completo</option>
+            <option value="pieces">Peças separadas</option>
+          </select>
+        </div>
+
+        {normalizedEquipment.armorMode === "set" ? (
+          <div className="equipment-block">
+            <input
+              className="input-new"
+              placeholder="Nome do set de armadura"
+              value={normalizedEquipment.armorSet.name || ""}
+              onChange={(e) => updateArmorSet({ name: e.target.value })}
+            />
+            <textarea
+              className="input-new equipment-textarea"
+              placeholder="Observações do set (bônus, penalidade, etc.)"
+              value={normalizedEquipment.armorSet.notes || ""}
+              onChange={(e) => updateArmorSet({ notes: e.target.value })}
+              rows={3}
+            />
+          </div>
+        ) : (
+          <div className="equipment-pieces-grid">
+            {Object.entries(EQUIPMENT_SLOT_LABELS).map(([key, label]) => (
+              <div key={key} className="form-group">
+                <label>{label}</label>
+                <input
+                  className="input-login"
+                  placeholder={`Peça de ${label.toLowerCase()}`}
+                  value={normalizedEquipment.armorPieces[key] || ""}
+                  onChange={(e) => updateArmorPiece(key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="equipment-subsection">
+          <div className="equipment-subsection-header">
+            <h5>Armas</h5>
+            <button type="button" className="btn-primary small" onClick={() => addEquipItem("weapons")}>
+              + Arma
+            </button>
+          </div>
+          {(normalizedEquipment.weapons || []).map((w) => (
+            <div key={w.id} className="equipment-item-card">
+              <input
+                className="input-login"
+                placeholder="Nome da arma"
+                value={w.name || ""}
+                onChange={(e) => updateEquipItem("weapons", w.id, { name: e.target.value })}
+              />
+              <textarea
+                className="input-login equipment-textarea"
+                placeholder="Detalhes da arma"
+                rows={2}
+                value={w.notes || ""}
+                onChange={(e) => updateEquipItem("weapons", w.id, { notes: e.target.value })}
+              />
+              <div className="equipment-item-actions">
+                <label className="equip-check">
+                  <input
+                    type="checkbox"
+                    checked={!!w.equipped}
+                    onChange={(e) => updateEquipItem("weapons", w.id, { equipped: e.target.checked })}
+                  />
+                  Equipada
+                </label>
+                <button type="button" className="btn-danger small" onClick={() => removeEquipItem("weapons", w.id)}>
+                  Remover
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="equipment-subsection">
+          <div className="equipment-subsection-header">
+            <h5>Equipamentos carregados</h5>
+            <button type="button" className="btn-primary small" onClick={() => addEquipItem("carried")}>
+              + Equipamento
+            </button>
+          </div>
+          {(normalizedEquipment.carried || []).map((c) => (
+            <div key={c.id} className="equipment-item-card">
+              <input
+                className="input-login"
+                placeholder="Nome do equipamento"
+                value={c.name || ""}
+                onChange={(e) => updateEquipItem("carried", c.id, { name: e.target.value })}
+              />
+              <textarea
+                className="input-login equipment-textarea"
+                placeholder="Detalhes"
+                rows={2}
+                value={c.notes || ""}
+                onChange={(e) => updateEquipItem("carried", c.id, { notes: e.target.value })}
+              />
+              <div className="equipment-item-actions">
+                <label className="equip-check">
+                  <input
+                    type="checkbox"
+                    checked={!!c.equipped}
+                    onChange={(e) => updateEquipItem("carried", c.id, { equipped: e.target.checked })}
+                  />
+                  Em uso
+                </label>
+                <button type="button" className="btn-danger small" onClick={() => removeEquipItem("carried", c.id)}>
+                  Remover
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel">
       {/* Coins Section */}
       <div className="coins-section">
         <div className="coin-field">
@@ -365,6 +572,7 @@ export default function Inventory({
             {filteredInventory.length} item{filteredInventory.length !== 1 ? "s" : ""} encontrado{filteredInventory.length !== 1 ? "s" : ""}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

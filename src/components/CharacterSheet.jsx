@@ -962,8 +962,10 @@ export default function CharacterSheet({
         <div className="tab-content">
           <Inventory
             inventory={sheet.inventory || []}
+            equipment={sheet.equipment || undefined}
             coins={sheet.coins || { gold: 0, silver: 0 }}
             onUpdateInventory={(inv) => onUpdateSheet({ ...sheet, inventory: inv })}
+            onUpdateEquipment={(equipment) => onUpdateSheet({ ...sheet, equipment })}
             onUpdateCoins={(coins) => onUpdateSheet({ ...sheet, coins })}
             onSave={onSave}
             characterId={characterId}

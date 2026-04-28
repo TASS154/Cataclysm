@@ -144,6 +144,16 @@
   animation: expandDown 0.3s ease;
 }
 
+.ability-desc {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.ability-modal textarea.input-login {
+  resize: vertical;
+  min-height: 140px;
+}
+
 @keyframes expandDown {
   from {
     opacity: 0;

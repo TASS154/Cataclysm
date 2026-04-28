@@ -36,6 +36,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const [dragging, setDragging] = useState({ tokenId: null, startX: 0, startY: 0, gridX: 0, gridY: 0 });
   const dragEndPosRef = useRef({ x: 0, y: 0 });
   const [showJoinOverlay, setShowJoinOverlay] = useState(false);
+  const [showAddOwnToken, setShowAddOwnToken] = useState(false);
   const [myCharacters, setMyCharacters] = useState([]);
   const [showGmAddToken, setShowGmAddToken] = useState(false);
   const [showGmSettings, setShowGmSettings] = useState(false);
@@ -92,11 +93,12 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   }, [sessionId, session]);
 
   const isGM = session && username === session.gmUsername;
-  const myToken = tokens.find((t) => t.ownerUsername === username);
+  const myTokens = tokens.filter((t) => t.ownerUsername === username);
+  const hasMyToken = myTokens.length > 0;
 
   useEffect(() => {
     if (!username || !session) return;
-    if (isGM || myToken) {
+    if (isGM || hasMyToken) {
       setShowJoinOverlay(false);
       return;
     }
@@ -104,7 +106,14 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       setMyCharacters(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setShowJoinOverlay(true);
     });
-  }, [username, session, isGM, myToken]);
+  }, [username, session, isGM, hasMyToken]);
+
+  const ensureMyCharactersLoaded = async () => {
+    if (!username) return;
+    if (myCharacters.length > 0) return;
+    const snap = await getDocs(collection(db, "users", username, "characters"));
+    setMyCharacters(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  };
 
   const handlePickCharacterInMap = async (character) => {
     if (!session) return;
@@ -118,7 +127,8 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       y: centerY,
       color: joinColor,
     });
-    setShowJoinOverlay(false);
+    if (showJoinOverlay) setShowJoinOverlay(false);
+    if (showAddOwnToken) setShowAddOwnToken(false);
   };
 
   const handleGmAddToken = async (e) => {
@@ -303,13 +313,20 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     return isGM || token.ownerUsername === username;
   };
 
+  const canEditTokenColor = (token) => {
+    if (!username) return false;
+    return isGM || token.ownerUsername === username;
+  };
+
   const activePointerIdRef = useRef(null);
+  const dragMetaRef = useRef({ startX: 0, startY: 0, moved: false });
 
   const handleTokenPointerDown = (e, token) => {
     if (rulerMode || areaTool) return;
     if (!canMoveToken(token)) return;
     e.preventDefault();
     activePointerIdRef.current = e.pointerId;
+    dragMetaRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
     const x = Math.max(0, Math.min((session?.mapWidth ?? 20) - 1, Number(token.x) || 0));
     const y = Math.max(0, Math.min((session?.mapHeight ?? 15) - 1, Number(token.y) || 0));
     dragEndPosRef.current = { x, y };
@@ -319,6 +336,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       startY: e.clientY,
       gridX: x,
       gridY: y,
+      moved: false,
     });
   };
 
@@ -332,21 +350,33 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       if (activePointerIdRef.current != null && e.pointerId != null && e.pointerId !== activePointerIdRef.current) return;
       const el = mapRef.current;
       if (!el) return;
+      const dx = Math.abs(e.clientX - dragging.startX);
+      const dy = Math.abs(e.clientY - dragging.startY);
+      const moved = dx > 3 || dy > 3;
+      if (moved) dragMetaRef.current.moved = true;
       const rect = el.getBoundingClientRect();
       const cellX = Math.floor(((e.clientX - rect.left) / rect.width) * mapW);
       const cellY = Math.floor(((e.clientY - rect.top) / rect.height) * mapH);
       const x = Math.max(0, Math.min(mapW - 1, cellX));
       const y = Math.max(0, Math.min(mapH - 1, cellY));
       dragEndPosRef.current = { x, y };
-      setDragging((d) => ({ ...d, gridX: x, gridY: y }));
+      setDragging((d) => ({ ...d, gridX: x, gridY: y, moved: d.moved || moved }));
     };
 
     const onUp = (e) => {
       if (activePointerIdRef.current != null && e?.pointerId != null && e.pointerId !== activePointerIdRef.current) return;
+      const currentToken = tokens.find((t) => t.id === tokenIdToUpdate);
       const { x, y } = dragEndPosRef.current;
-      updateTokenPosition(sessionId, tokenIdToUpdate, { x, y }).catch(console.error);
+      const wasMoved = !!dragMetaRef.current.moved && (!currentToken || currentToken.x !== x || currentToken.y !== y);
+      if (wasMoved) {
+        updateTokenPosition(sessionId, tokenIdToUpdate, { x, y }).catch(console.error);
+      } else if (currentToken && canEditTokenColor(currentToken)) {
+        setTokenMenu({ tokenId: currentToken.id, x: e.clientX, y: e.clientY });
+        setTokenEditColor(currentToken.color || "#6b7280");
+      }
       setDragging({ tokenId: null, startX: 0, startY: 0, gridX: 0, gridY: 0 });
       activePointerIdRef.current = null;
+      dragMetaRef.current = { startX: 0, startY: 0, moved: false };
     };
 
     window.addEventListener("pointermove", onMove, { passive: false });
@@ -387,6 +417,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       const y = isDraggingThis ? dragging.gridY : token.y;
       const draggable = canMoveToken(token);
       const pad = Math.max(2, Math.floor(cellSize * 0.06));
+      const colorEditable = canEditTokenColor(token);
       return (
         <div
           key={token.id}
@@ -400,7 +431,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
           }}
           onPointerDown={(e) => handleTokenPointerDown(e, token)}
           onContextMenu={(e) => {
-            if (!isGM) return;
+            if (!colorEditable) return;
             e.preventDefault();
             setTokenMenu({ tokenId: token.id, x: e.clientX, y: e.clientY });
             setTokenEditColor(token.color || "#6b7280");
@@ -425,15 +456,15 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
 
   return (
     <div className={`map-view ${embedded ? "map-view--embedded" : ""}`}>
-      {showJoinOverlay && myCharacters.length > 0 && (
+      {(showJoinOverlay || showAddOwnToken) && myCharacters.length > 0 && (
         <div className="map-join-overlay">
           <div className="map-join-modal">
-            <h3>Adicionar seu personagem</h3>
+            <h3>{showAddOwnToken ? "Adicionar token (invocação)" : "Adicionar seu personagem"}</h3>
             <div className="form-group">
               <label>Cor do token</label>
               <input type="color" value={joinColor} onChange={(e) => setJoinColor(e.target.value)} className="input-color" />
             </div>
-            <p className="muted">Escolha a ficha para esta sessão:</p>
+            <p className="muted">Escolha a ficha para criar um token nesta sessão:</p>
             <ul className="join-char-list">
               {myCharacters.map((c) => (
                 <li key={c.id}>
@@ -447,6 +478,16 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                 </li>
               ))}
             </ul>
+            {showAddOwnToken && (
+              <button
+                type="button"
+                className="btn-secondary fullwidth"
+                style={{ marginTop: 8 }}
+                onClick={() => setShowAddOwnToken(false)}
+              >
+                Fechar
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -578,7 +619,15 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
             <input type="color" value={tokenEditColor} onChange={(e) => setTokenEditColor(e.target.value)} className="input-color" />
           </div>
           <button type="button" className="btn-primary fullwidth" onClick={() => handleTokenColorChange(tokenMenu.tokenId, tokenEditColor)}>Aplicar cor</button>
-          <button type="button" className="btn-danger fullwidth" style={{ marginTop: 6 }} onClick={() => handleRemoveToken(tokenMenu.tokenId)}>Remover token</button>
+          {(() => {
+            const token = tokens.find((t) => t.id === tokenMenu.tokenId);
+            if (!token || !isGM) return null;
+            return (
+              <button type="button" className="btn-danger fullwidth" style={{ marginTop: 6 }} onClick={() => handleRemoveToken(tokenMenu.tokenId)}>
+                Remover token
+              </button>
+            );
+          })()}
           <button type="button" className="btn-secondary fullwidth" style={{ marginTop: 6 }} onClick={() => setTokenMenu({ tokenId: null, x: 0, y: 0 })}>Fechar</button>
         </div>
       )}
@@ -588,6 +637,19 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         <button type="button" className={`map-ruler-btn ${rulerMode ? "map-ruler-btn--active" : ""}`} onClick={() => { setRulerMode((m) => !m); setRulerPoints([]); }} title="Régua: clique duas células para medir">
           Régua
         </button>
+        {!isGM && (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={async () => {
+              await ensureMyCharactersLoaded();
+              setShowAddOwnToken(true);
+            }}
+            title="Adicionar outro token seu (invocação, aliado, etc.)"
+          >
+            + Meu token
+          </button>
+        )}
         {isGM && (
           <>
             <button type="button" className="btn-primary" onClick={() => { setGmAddAtX(String(Math.floor(gridW / 2))); setGmAddAtY(String(Math.floor(gridH / 2))); setShowGmAddToken(true); }}>
@@ -632,7 +694,11 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         data-pan-enabled={mapZoom >= 1.5}
         onWheel={(e) => {
           e.preventDefault();
-          setMapZoom((z) => Math.max(0.25, Math.min(3, z + (e.deltaY > 0 ? -0.1 : 0.1))));
+          setMapZoom((z) => {
+            const next = Math.max(0.5, Math.min(2.5, z + (e.deltaY > 0 ? -0.1 : 0.1)));
+            if (next <= 1) setMapPan({ x: 0, y: 0 });
+            return next;
+          });
         }}
         onMouseDown={(e) => {
           if (e.target.closest(".map-token") || e.target.closest(".map-token-menu")) return;

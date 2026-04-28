@@ -51,6 +51,20 @@ const emptySheet = {
   },
   abilities: [],
   inventory: [],
+  equipment: {
+    armorMode: "set",
+    armorSet: { name: "", notes: "" },
+    armorPieces: {
+      head: "",
+      chest: "",
+      hands: "",
+      legs: "",
+      feet: "",
+      accessory: "",
+    },
+    weapons: [],
+    carried: [],
+  },
   coins: { gold: 0, silver: 0 },
   traits: [],
   effects: [],
@@ -96,6 +110,20 @@ function buildUpdatedSheet(found, emptySheet) {
     characterInfo: found.characterInfo || emptySheet.characterInfo,
     coins: found.coins || { gold: 0, silver: 0 },
     inventory: found.inventory || [],
+    equipment: {
+      ...emptySheet.equipment,
+      ...(found.equipment || {}),
+      armorSet: {
+        ...emptySheet.equipment.armorSet,
+        ...(found.equipment?.armorSet || {}),
+      },
+      armorPieces: {
+        ...emptySheet.equipment.armorPieces,
+        ...(found.equipment?.armorPieces || {}),
+      },
+      weapons: Array.isArray(found.equipment?.weapons) ? found.equipment.weapons : [],
+      carried: Array.isArray(found.equipment?.carried) ? found.equipment.carried : [],
+    },
     abilities: (found.abilities || []).map(ability => ({
       ...ability,
       cost: typeof ability.cost === "number" ? ability.cost : (typeof ability.cost === "string" ? (ability.cost === "" ? 0 : Number(ability.cost) || 0) : 0)
@@ -243,7 +271,12 @@ function EditorLayout({
                 <button
                   className="btn-primary fullwidth"
                   onClick={() => {
-                    const n = { ...emptySheet, name: "Nova Ficha " + (characters.length + 1), owner: username };
+                    const n = {
+                      ...emptySheet,
+                      name: "Nova Ficha " + (characters.length + 1),
+                      owner: username,
+                      isMain: characters.length === 0,
+                    };
                     setSheet(n);
                     saveSheet(n);
                   }}
