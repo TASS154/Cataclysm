@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import {
   collection,
@@ -245,6 +245,7 @@ function EditorLayout({
   setSheet,
   emptySheet,
   saveSheet,
+  saveStatus,
   deleteCharacter,
   handleLogout,
   loading,
@@ -465,6 +466,17 @@ function EditorLayout({
                     <button className="btn-success" onClick={() => saveSheet(sheet)}>
                       Salvar
                     </button>
+                    {saveStatus !== "idle" && (
+                      <span
+                        className={`save-status save-status--${saveStatus}`}
+                        role="status"
+                        aria-live="polite"
+                      >
+                        {saveStatus === "saving" && "Salvando…"}
+                        {saveStatus === "saved" && "Salvo"}
+                        {saveStatus === "error" && "Erro ao salvar"}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -570,7 +582,23 @@ export default function RPGPlayerEditor() {
 
   const [sheet, setSheet] = useState(emptySheet);
   const [contentTab, setContentTab] = useState("sheet");
+  const [saveStatus, setSaveStatus] = useState("idle");
+  const savePendingRef = useRef(0);
+  const saveStatusTimerRef = useRef(null);
   const navigate = useNavigate();
+
+  const defaultTitleRef = useRef(
+    typeof document !== "undefined" ? document.title : "Cataclysm"
+  );
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      document.title = defaultTitleRef.current || "Cataclysm";
+      return;
+    }
+    const name = (sheet?.name && String(sheet.name).trim()) || "Ficha";
+    document.title = `${name} · Cataclysm`;
+  }, [isLoggedIn, sheet?.name]);
 
   // Login Handling
   const handleLogin = async (e) => {
@@ -649,25 +677,45 @@ export default function RPGPlayerEditor() {
     }
   }, [selectedId, characters]);
 
-  const saveSheet = async (s) => {
-    try {
-      const copy = {
-        ...s,
-        owner: username,
-        name: typeof s?.name === "string" ? s.name.trim() : s?.name,
-      };
-      if (!copy.id) {
-        const ref = await addDoc(collection(db, `users/${username}/characters`), copy);
-        setSelectedId(ref.id);
-        setSheet((prev) => ({ ...prev, id: ref.id }));
-      } else {
-        await setDoc(doc(db, `users/${username}/characters`, copy.id), copy);
+  const saveSheet = useCallback(
+    async (s) => {
+      savePendingRef.current += 1;
+      setSaveStatus("saving");
+      try {
+        const copy = {
+          ...s,
+          owner: username,
+          name: typeof s?.name === "string" ? s.name.trim() : s?.name,
+        };
+        if (!copy.id) {
+          const ref = await addDoc(collection(db, `users/${username}/characters`), copy);
+          setSelectedId(ref.id);
+          setSheet((prev) => ({ ...prev, id: ref.id }));
+        } else {
+          await setDoc(doc(db, `users/${username}/characters`, copy.id), copy);
+        }
+      } catch (err) {
+        console.error("save error", err);
+        alert("Erro ao salvar: " + err.message);
+        savePendingRef.current -= 1;
+        if (savePendingRef.current <= 0) {
+          savePendingRef.current = 0;
+          setSaveStatus("error");
+          clearTimeout(saveStatusTimerRef.current);
+          saveStatusTimerRef.current = setTimeout(() => setSaveStatus("idle"), 3200);
+        }
+        return;
       }
-    } catch (err) {
-      console.error("save error", err);
-      alert("Erro ao salvar: " + err.message);
-    }
-  };
+      savePendingRef.current -= 1;
+      if (savePendingRef.current <= 0) {
+        savePendingRef.current = 0;
+        setSaveStatus("saved");
+        clearTimeout(saveStatusTimerRef.current);
+        saveStatusTimerRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+      }
+    },
+    [username]
+  );
 
   const deleteCharacter = async (id) => {
     if (!window.confirm("Deletar ficha?")) return;
@@ -776,6 +824,7 @@ export default function RPGPlayerEditor() {
     setSheet,
     emptySheet,
     saveSheet,
+    saveStatus,
     deleteCharacter,
     handleLogout,
     loading,

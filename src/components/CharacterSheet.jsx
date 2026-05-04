@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Tabs from "./Tabs";
 import AbilityCard from "./AbilityCard";
 import Inventory from "./Inventory";
@@ -56,6 +56,10 @@ export default function CharacterSheet({
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [showLoreModal, setShowLoreModal] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState(null);
+  const [barStep, setBarStep] = useState("1");
+  const lastDeltaBarRef = useRef("hp");
+  const [statusSearchQuery, setStatusSearchQuery] = useState("");
+  const [documentListSearch, setDocumentListSearch] = useState("");
 
   const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -304,6 +308,30 @@ export default function CharacterSheet({
     setTimeout(() => onSave(), 0);
   };
 
+  const getBarMaxForKey = (barKey, s = sheet) => {
+    const level = Number(s.level) || 1;
+    const bars = s.bars || {};
+    if (barKey === "inata") return bars.maxInata || level * 200;
+    if (barKey === "ether") return bars.maxEther || level * 100;
+    if (barKey === "vigor") return bars.maxVigor || level * 50;
+    if (barKey === "hp") return bars.maxHp ?? bars.hp ?? 100;
+    if (barKey === "sanity") return 100;
+    return 100;
+  };
+
+  const applyBarDelta = (barKey, sign) => {
+    const raw = Number(barStep);
+    const amount = Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 1;
+    lastDeltaBarRef.current = barKey;
+    const s = JSON.parse(JSON.stringify(sheet));
+    if (!s.bars) s.bars = {};
+    const max = getBarMaxForKey(barKey, s);
+    const cur = Number(s.bars[barKey]) || 0;
+    s.bars[barKey] = Math.min(max, Math.max(0, cur + sign * amount));
+    onUpdateSheet(s);
+    setTimeout(() => onSave(), 0);
+  };
+
   const filteredAbilities = sheet.abilities.filter(a => {
     const matchesType = a.type === activeAbilityTab;
     if (!matchesType) return false;
@@ -315,7 +343,8 @@ export default function CharacterSheet({
       (a.title || "").toLowerCase().includes(query) ||
       (a.description || "").toLowerCase().includes(query) ||
       (a.type || "").toLowerCase().includes(query) ||
-      (a.effect || "").toLowerCase().includes(query)
+      (a.effect || "").toLowerCase().includes(query) ||
+      String(a.damage || "").toLowerCase().includes(query)
     );
   });
   const favoriteAbilitiesList = filteredAbilities.filter(a => favoriteAbilities.includes(a.id));
@@ -511,6 +540,30 @@ export default function CharacterSheet({
           <section className="two-columns">
             <div className="panel bars-panel">
               <h3>Barras</h3>
+              <div className="bar-step-toolbar">
+                <label htmlFor="bar-step-input" className="bar-step-label">
+                  Passo
+                </label>
+                <input
+                  id="bar-step-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={barStep}
+                  onChange={(e) => setBarStep(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyBarDelta(lastDeltaBarRef.current || "hp", -1);
+                    }
+                  }}
+                  className="input-number bar-step-input"
+                  title="Enter: subtrair da última barra ajustada (+/−), ou Vida se nenhuma"
+                />
+                <span className="bar-step-hint muted small">
+                  Enter − última barra
+                </span>
+              </div>
               {[
                 { 
                   key: "bars.inata", 
@@ -615,6 +668,24 @@ export default function CharacterSheet({
                             />
                           </>
                         )}
+                        <div className="bar-delta-actions">
+                          <button
+                            type="button"
+                            className="bar-delta-btn"
+                            title="Subtrair passo (dreno/dano)"
+                            onClick={() => applyBarDelta(parts[1], -1)}
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            className="bar-delta-btn bar-delta-btn--plus"
+                            title="Somar passo (recuperar)"
+                            onClick={() => applyBarDelta(parts[1], 1)}
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className={`bar-fill ${b.colorClass}`} style={{ width: `${Math.min((value / max) * 100, 100)}%` }}>
@@ -977,6 +1048,14 @@ export default function CharacterSheet({
       {activeTab === "status" && (
         <div className="tab-content">
           <div className="panel">
+            <input
+              type="search"
+              className="input-new sheet-section-search"
+              placeholder="Buscar em traços e condições…"
+              value={statusSearchQuery}
+              onChange={(e) => setStatusSearchQuery(e.target.value)}
+              aria-label="Buscar em traços e condições"
+            />
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
               <button
                 type="button"
@@ -1022,7 +1101,16 @@ export default function CharacterSheet({
               </button>
             </div>
             <ul className="trait-list">
-              {(sheet.traits || []).map((tr) => (
+              {(sheet.traits || [])
+                .filter((tr) => {
+                  const q = statusSearchQuery.trim().toLowerCase();
+                  if (!q) return true;
+                  return (
+                    (tr.name || "").toLowerCase().includes(q) ||
+                    (tr.effect || "").toLowerCase().includes(q)
+                  );
+                })
+                .map((tr) => (
                 <li key={tr.id} className="trait-item">
                   <div>
                     <strong>{tr.name}</strong>: {tr.effect}
@@ -1116,7 +1204,17 @@ export default function CharacterSheet({
               </button>
             </div>
             <ul className="inventory-list">
-              {(sheet.effects || []).map((ef) => {
+              {(sheet.effects || [])
+                .filter((ef) => {
+                  const q = statusSearchQuery.trim().toLowerCase();
+                  if (!q) return true;
+                  return (
+                    (ef.name || "").toLowerCase().includes(q) ||
+                    (ef.description || "").toLowerCase().includes(q) ||
+                    (ef.effect || "").toLowerCase().includes(q)
+                  );
+                })
+                .map((ef) => {
                 const rounds = ef.rounds !== undefined ? ef.rounds : 0;
                 const damage = ef.damage !== undefined ? ef.damage : 0;
                 const drainType = ef.drainType || "";
@@ -1205,17 +1303,32 @@ export default function CharacterSheet({
 
           {/* Modal Documentos — lista (ícone + título) → ao abrir: editor de texto */}
           {showDocumentsModal && (
-            <div className="modal-overlay" onClick={() => { setShowDocumentsModal(false); setEditingDocumentId(null); onSave(); }}>
+            <div className="modal-overlay" onClick={() => { setShowDocumentsModal(false); setEditingDocumentId(null); setDocumentListSearch(""); onSave(); }}>
               <div className={`modal-content notes-modal notes-modal-docs ${editingDocumentId ? "notes-modal-docs-editing" : ""}`} onClick={e => e.stopPropagation()}>
                 {editingDocumentId === null ? (
                   <>
                     <div className="notes-modal-header">
                       <h3>Documentos</h3>
-                      <button type="button" className="modal-close" onClick={() => { setShowDocumentsModal(false); onSave(); }} aria-label="Fechar">×</button>
+                      <button type="button" className="modal-close" onClick={() => { setShowDocumentsModal(false); setDocumentListSearch(""); onSave(); }} aria-label="Fechar">×</button>
                     </div>
                     <p className="notes-modal-hint">Clique em um documento para abrir o editor e escrever ou editar o texto.</p>
+                    <input
+                      type="search"
+                      className="input-new document-list-search"
+                      placeholder="Buscar documentos por título ou texto…"
+                      value={documentListSearch}
+                      onChange={(e) => setDocumentListSearch(e.target.value)}
+                      aria-label="Buscar documentos"
+                    />
                     <div className="documents-grid">
-                      {(sheet.documents || []).map((doc) => (
+                      {(sheet.documents || [])
+                        .filter((doc) => {
+                          const q = documentListSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          const blob = `${doc.title || ""} ${doc.content || ""} ${getDocumentContent(doc)}`.toLowerCase();
+                          return blob.includes(q);
+                        })
+                        .map((doc) => (
                         <button
                           key={doc.id}
                           type="button"

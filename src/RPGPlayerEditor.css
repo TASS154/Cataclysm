@@ -422,6 +422,21 @@
   max-width: 180px;
 }
 
+.save-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 72px;
+}
+.save-status--saving {
+  color: var(--accent-indigo, #818cf8);
+}
+.save-status--saved {
+  color: #34d399;
+}
+.save-status--error {
+  color: #fb7185;
+}
 /* Buttons */
 button { cursor: pointer; border: none; }
 

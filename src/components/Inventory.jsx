@@ -184,6 +184,21 @@ export default function Inventory({
     return true;
   });
 
+  const eqSearch = searchQuery.trim().toLowerCase();
+  const matchesEquipText = (a, b) => {
+    if (!eqSearch) return true;
+    return (
+      (a || "").toLowerCase().includes(eqSearch) ||
+      (b || "").toLowerCase().includes(eqSearch)
+    );
+  };
+  const filteredWeapons = (normalizedEquipment.weapons || []).filter((w) =>
+    matchesEquipText(w.name, w.notes)
+  );
+  const filteredCarried = (normalizedEquipment.carried || []).filter((c) =>
+    matchesEquipText(c.name, c.notes)
+  );
+
   const updateEquipment = (patch) => {
     onUpdateEquipment({
       ...normalizedEquipment,
@@ -229,6 +244,30 @@ export default function Inventory({
 
   return (
     <div className="inventory-panel inventory-panel--expanded">
+      <div className="panel inventory-search-panel">
+        <div className="filter-section">
+          <input
+            type="text"
+            placeholder="Buscar inventário e equipamentos (nome, descrição, tags, armas)…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input-new"
+            style={{ marginBottom: "12px", width: "100%" }}
+          />
+          <label>Filtrar por tag:</label>
+          <select
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            className="select"
+          >
+            <option value="">Todas as tags</option>
+            {availableTags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="panel equipment-panel">
         <h4>Equipamentos</h4>
         <div className="equipment-mode-row">
@@ -282,7 +321,7 @@ export default function Inventory({
               + Arma
             </button>
           </div>
-          {(normalizedEquipment.weapons || []).map((w) => (
+          {filteredWeapons.map((w) => (
             <div key={w.id} className="equipment-item-card">
               <input
                 className="input-login"
@@ -321,7 +360,7 @@ export default function Inventory({
               + Equipamento
             </button>
           </div>
-          {(normalizedEquipment.carried || []).map((c) => (
+          {filteredCarried.map((c) => (
             <div key={c.id} className="equipment-item-card">
               <input
                 className="input-login"
@@ -381,29 +420,6 @@ export default function Inventory({
             min="0"
           />
         </div>
-      </div>
-
-      {/* Search and Filter Section */}
-      <div className="filter-section">
-        <input
-          type="text"
-          placeholder="Buscar itens (nome, descrição, tags)..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="input-new"
-          style={{ marginBottom: "12px", width: "100%" }}
-        />
-        <label>Filtrar por tag:</label>
-        <select
-          value={filterTag}
-          onChange={(e) => setFilterTag(e.target.value)}
-          className="select"
-        >
-          <option value="">Todas as tags</option>
-          {availableTags.map(tag => (
-            <option key={tag} value={tag}>{tag}</option>
-          ))}
-        </select>
       </div>
 
       {/* Add New Tag */}
