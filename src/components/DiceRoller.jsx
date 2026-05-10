@@ -141,7 +141,9 @@ export default function DiceRoller({
       alert("Inspiração/Certeza não é aplicada em atalho. Use uma rolagem única de d20.");
       return;
     }
-    const attrMod = (shortcut.modifierAttr && shortcut.modifierAttr !== "puro") ? (stats[shortcut.modifierAttr] || 0) : 0;
+    const modKey = shortcut.modifierAttr;
+    const attrMod =
+      modKey && modKey !== "puro" ? stats[modKey] || 0 : 0;
     const out = rollDiceString(shortcut.diceString || "1d20", attrMod);
     if (!out) {
       setRollResults([]);
@@ -163,7 +165,7 @@ export default function DiceRoller({
         results: out.results,
         modifier: attrMod,
         total: out.total,
-        attribute: shortcut.modifierAttr || "puro",
+        attribute: shortcut.modifierAttr === "puro" || !shortcut.modifierAttr ? "puro" : shortcut.modifierAttr,
         manualMod: 0
       });
     }
@@ -177,7 +179,15 @@ export default function DiceRoller({
     if (!onUpdateSheet) return;
     const next = {
       ...sheet,
-      diceShortcuts: [...shortcuts, { id: Date.now(), label, diceString, modifierAttr: newShortcutModifierAttr === "puro" ? undefined : newShortcutModifierAttr }]
+      diceShortcuts: [
+        ...shortcuts,
+        {
+          id: Date.now(),
+          label,
+          diceString,
+          modifierAttr: newShortcutModifierAttr === "puro" ? "puro" : newShortcutModifierAttr,
+        },
+      ],
     };
     onUpdateSheet(next);
     setNewShortcutLabel("");
@@ -435,7 +445,12 @@ export default function DiceRoller({
                     Rolar
                   </button>
                   <span style={{ flex: 1 }}>{sc.label}</span>
-                  <span className="muted small">{sc.diceString}{sc.modifierAttr ? ` +${sc.modifierAttr.toUpperCase()}` : ""}</span>
+                  <span className="muted small">
+                    {sc.diceString}
+                    {sc.modifierAttr && sc.modifierAttr !== "puro"
+                      ? ` +${sc.modifierAttr.toUpperCase()}`
+                      : " · Puro"}
+                  </span>
                   {onUpdateSheet && (
                     <button type="button" className="link-danger small" onClick={() => removeShortcut(sc.id)} aria-label="Remover">×</button>
                   )}
@@ -467,7 +482,7 @@ export default function DiceRoller({
                 className="select"
                 style={{ width: "100%", marginBottom: "8px" }}
               >
-                <option value="puro">Sem modificador</option>
+                <option value="puro">Puro (0)</option>
                 {Object.entries(stats).map(([k, v]) => (
                   <option key={k} value={k}>{k.toUpperCase()} ({v})</option>
                 ))}

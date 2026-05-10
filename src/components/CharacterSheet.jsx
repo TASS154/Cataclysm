@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Tabs from "./Tabs";
 import AbilityCard from "./AbilityCard";
 import Inventory from "./Inventory";
+import { blobToCompressedDataUrl } from "../utils/imageCompress";
 import "./CharacterSheet.css";
+
+const MAX_GALLERY_IMAGES = 24;
 
 const TAB_CONFIG = [
   { id: "attributes", label: "Atributos", icon: "⚔️" },
@@ -60,8 +63,70 @@ export default function CharacterSheet({
   const lastDeltaBarRef = useRef("hp");
   const [statusSearchQuery, setStatusSearchQuery] = useState("");
   const [documentListSearch, setDocumentListSearch] = useState("");
+  const [showImagesModal, setShowImagesModal] = useState(false);
+  const [editingGalleryImageId, setEditingGalleryImageId] = useState(null);
+  const [imageGallerySearch, setImageGallerySearch] = useState("");
+  const galleryFileInputRef = useRef(null);
 
   const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+  const appendGalleryImageFromBlob = useCallback(
+    async (blob) => {
+      if (!blob || !String(blob.type || "").startsWith("image/")) return;
+      try {
+        const dataUrl = await blobToCompressedDataUrl(blob);
+        const newId = genId();
+        let added = false;
+        onUpdateSheet((prev) => {
+          const list = prev.galleryImages || [];
+          if (list.some((i) => i.id === newId)) return prev;
+          if (list.length >= MAX_GALLERY_IMAGES) return prev;
+          added = true;
+          const img = {
+            id: newId,
+            title: `Imagem ${list.length + 1}`,
+            dataUrl,
+            createdAt: Date.now(),
+          };
+          return { ...prev, galleryImages: [...list, img] };
+        });
+        if (!added) {
+          alert(`Limite de ${MAX_GALLERY_IMAGES} imagens na galeria (para caber no salvamento da ficha).`);
+          return;
+        }
+        setTimeout(() => onSave(), 0);
+      } catch (err) {
+        console.error(err);
+        alert("Não foi possível processar a imagem.");
+      }
+    },
+    [onUpdateSheet, onSave]
+  );
+
+  useEffect(() => {
+    if (!editingGalleryImageId || !showImagesModal) return;
+    const exists = (sheet.galleryImages || []).some((x) => x.id === editingGalleryImageId);
+    if (!exists) setEditingGalleryImageId(null);
+  }, [editingGalleryImageId, showImagesModal, sheet.galleryImages]);
+
+  useEffect(() => {
+    if (!showImagesModal) return;
+    const handler = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items?.length) return;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.kind === "file" && String(it.type || "").startsWith("image/")) {
+          e.preventDefault();
+          const blob = it.getAsFile();
+          if (blob) appendGalleryImageFromBlob(blob);
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", handler);
+    return () => window.removeEventListener("paste", handler);
+  }, [showImagesModal, appendGalleryImageFromBlob]);
 
   const getDocumentContent = (doc) => {
     if (doc.content != null && doc.content !== "") return doc.content;
@@ -1286,6 +1351,13 @@ export default function CharacterSheet({
               <button
                 type="button"
                 className="btn-primary notes-action-btn"
+                onClick={() => setShowImagesModal(true)}
+              >
+                🖼️ Imagens
+              </button>
+              <button
+                type="button"
+                className="btn-primary notes-action-btn"
                 onClick={() => setShowLoreModal(true)}
               >
                 📜 Lore
@@ -1400,6 +1472,174 @@ export default function CharacterSheet({
                     </>
                   );
                 })()}
+              </div>
+            </div>
+          )}
+
+          {/* Modal Galeria — colar / arquivo, como documentos */}
+          {showImagesModal && (
+            <div
+              className="modal-overlay"
+              onClick={() => {
+                setShowImagesModal(false);
+                setEditingGalleryImageId(null);
+                setImageGallerySearch("");
+                onSave();
+              }}
+            >
+              <div
+                className={`modal-content notes-modal notes-modal-docs notes-modal-gallery ${editingGalleryImageId ? "notes-modal-gallery-editing" : ""}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  ref={galleryFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="gallery-file-input-hidden"
+                  onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files?.length) return;
+                    for (const f of files) {
+                      if (f.type.startsWith("image/")) {
+                        await appendGalleryImageFromBlob(f);
+                      }
+                    }
+                    e.target.value = "";
+                  }}
+                />
+                {editingGalleryImageId === null ? (
+                  <>
+                    <div className="notes-modal-header">
+                      <h3>Galeria de imagens</h3>
+                      <button
+                        type="button"
+                        className="modal-close"
+                        onClick={() => {
+                          setShowImagesModal(false);
+                          setEditingGalleryImageId(null);
+                          setImageGallerySearch("");
+                          onSave();
+                        }}
+                        aria-label="Fechar"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <p className="notes-modal-hint">
+                      Cole uma captura ou arte com <kbd>Ctrl</kbd>+<kbd>V</kbd> nesta janela, ou envie arquivos do computador. As imagens são guardadas na ficha (comprimidas).
+                    </p>
+                    <div className="gallery-toolbar">
+                      <button
+                        type="button"
+                        className="btn-primary small"
+                        onClick={() => galleryFileInputRef.current?.click()}
+                      >
+                        + Arquivo…
+                      </button>
+                      <span className="muted small">
+                        {(sheet.galleryImages || []).length}/{MAX_GALLERY_IMAGES} imagens
+                      </span>
+                    </div>
+                    <input
+                      type="search"
+                      className="input-new document-list-search"
+                      placeholder="Buscar por título…"
+                      value={imageGallerySearch}
+                      onChange={(e) => setImageGallerySearch(e.target.value)}
+                      aria-label="Buscar imagens"
+                    />
+                    <div className="gallery-grid">
+                      {(sheet.galleryImages || [])
+                        .filter((g) => {
+                          const q = imageGallerySearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (g.title || "").toLowerCase().includes(q);
+                        })
+                        .map((g) => (
+                          <button
+                            key={g.id}
+                            type="button"
+                            className="gallery-tile"
+                            onClick={() => setEditingGalleryImageId(g.id)}
+                          >
+                            <img className="gallery-thumb" src={g.dataUrl} alt="" />
+                            <span className="gallery-tile-title">{g.title || "Sem título"}</span>
+                          </button>
+                        ))}
+                    </div>
+                    {(sheet.galleryImages || []).length === 0 && (
+                      <p className="muted small gallery-empty-msg">Nenhuma imagem na galeria ainda.</p>
+                    )}
+                    {(sheet.galleryImages || []).length > 0 &&
+                      !(sheet.galleryImages || []).some((g) => {
+                        const q = imageGallerySearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return (g.title || "").toLowerCase().includes(q);
+                      }) && (
+                        <p className="muted small gallery-empty-msg">Nenhuma imagem encontrada para essa busca.</p>
+                      )}
+                    {(sheet.galleryImages || []).length >= MAX_GALLERY_IMAGES && (
+                      <p className="muted small gallery-limit-msg">
+                        Limite da galeria atingido. Remova uma imagem para adicionar outra.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  (() => {
+                    const g = (sheet.galleryImages || []).find((x) => x.id === editingGalleryImageId);
+                    if (!g) return null;
+                    return (
+                      <>
+                        <div className="notes-modal-header document-editor-header">
+                          <button
+                            type="button"
+                            className="document-back"
+                            onClick={() => {
+                              setEditingGalleryImageId(null);
+                              onSave();
+                            }}
+                          >
+                            ← Voltar
+                          </button>
+                          <input
+                            type="text"
+                            className="document-editor-title"
+                            value={g.title || ""}
+                            onChange={(e) => {
+                              const next = (sheet.galleryImages || []).map((img) =>
+                                img.id === g.id ? { ...img, title: e.target.value } : img
+                              );
+                              onUpdateSheet({ ...sheet, galleryImages: next });
+                            }}
+                            onBlur={onSave}
+                            placeholder="Título"
+                          />
+                          <button
+                            type="button"
+                            className="btn-danger small document-remove"
+                            onClick={() => {
+                              onUpdateSheet({
+                                ...sheet,
+                                galleryImages: (sheet.galleryImages || []).filter((img) => img.id !== g.id),
+                              });
+                              setEditingGalleryImageId(null);
+                              onSave();
+                            }}
+                          >
+                            Remover
+                          </button>
+                        </div>
+                        <div className="gallery-detail-wrap">
+                          <img className="gallery-detail-img" src={g.dataUrl} alt={g.title || "Imagem da galeria"} />
+                        </div>
+                        <p className="muted small gallery-detail-hint">
+                          Dica: voltando à lista você pode colar outra imagem com Ctrl+V.
+                        </p>
+                      </>
+                    );
+                  })()
+                )}
               </div>
             </div>
           )}
