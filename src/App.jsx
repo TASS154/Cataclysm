@@ -18,6 +18,8 @@ import CharacterSheet from "./components/CharacterSheet";
 import MapView from "./components/MapView";
 import JoinPage from "./pages/JoinPage";
 import RulesPage from "./pages/RulesPage";
+import NotesPage from "./pages/NotesPage";
+import ImportExportModal from "./components/ImportExportModal";
 import { UserProvider } from "./context/UserContext";
 import { createSession } from "./services/sessionService";
 import "./RPGPlayerEditor.css";
@@ -256,6 +258,7 @@ function EditorLayout({
   setContentTab,
   onRequestRest,
   onActivateFocus,
+  onOpenImportExport,
 }) {
   const effectiveStats = useMemo(() => getEffectiveStats(sheet), [sheet]);
   const isMobile = useIsMobile(980);
@@ -308,6 +311,34 @@ function EditorLayout({
                   onClick={() => navigate("/join")}
                 >
                   Entrar na sessão
+                </button>
+              </div>
+              <div className="nav-group">
+                <span className="nav-group-label">Conta</span>
+                <button
+                  type="button"
+                  className="btn-primary fullwidth"
+                  onClick={() => navigate("/notas")}
+                  title="Suas notas pessoais (não atreladas a uma ficha específica)"
+                >
+                  📝 Notas de Perfil
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline fullwidth"
+                  onClick={() => onOpenImportExport && onOpenImportExport("export")}
+                  disabled={!sheet || (!sheet.id && !sheet.name)}
+                  title="Exportar a ficha selecionada em JSON"
+                >
+                  ⬆️ Exportar ficha
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline fullwidth"
+                  onClick={() => onOpenImportExport && onOpenImportExport("import")}
+                  title="Importar ficha de um arquivo JSON"
+                >
+                  ⬇️ Importar ficha
                 </button>
               </div>
               <div className="nav-group">
@@ -585,6 +616,7 @@ export default function RPGPlayerEditor() {
   const [sheet, setSheet] = useState(emptySheet);
   const [contentTab, setContentTab] = useState("sheet");
   const [saveStatus, setSaveStatus] = useState("idle");
+  const [importExportState, setImportExportState] = useState({ open: false, mode: "export" });
   const savePendingRef = useRef(0);
   const saveStatusTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -764,6 +796,40 @@ export default function RPGPlayerEditor() {
     setCharacters([]);
   };
 
+  const openImportExport = (mode = "export") => {
+    setImportExportState({ open: true, mode });
+  };
+
+  const closeImportExport = () => {
+    setImportExportState({ open: false, mode: "export" });
+  };
+
+  const handleImportConfirmed = useCallback(
+    async (preparedCharacter, options = {}) => {
+      const action = options.action || "new";
+      const data = {
+        ...emptySheet,
+        ...preparedCharacter,
+        owner: username,
+      };
+
+      if (action === "overwrite" && data.id) {
+        await setDoc(doc(db, `users/${username}/characters`, data.id), data);
+        setSelectedId(data.id);
+        setSheet(buildUpdatedSheet(data, emptySheet));
+      } else {
+        const { id: _ignore, ...rest } = data;
+        const ref = await addDoc(
+          collection(db, `users/${username}/characters`),
+          rest
+        );
+        setSelectedId(ref.id);
+        setSheet(buildUpdatedSheet({ ...rest, id: ref.id }, emptySheet));
+      }
+    },
+    [username]
+  );
+
   // Quando não logado: /regras é pública; demais rotas mostram login
   if (!isLoggedIn) {
     const loginForm = (
@@ -835,6 +901,7 @@ export default function RPGPlayerEditor() {
     setContentTab,
     onRequestRest: requestRest,
     onActivateFocus: activateFocusForNextAction,
+    onOpenImportExport: openImportExport,
   };
 
   return (
@@ -842,10 +909,19 @@ export default function RPGPlayerEditor() {
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
       <Routes>
         <Route path="/regras" element={<RulesPage />} />
+        <Route path="/notas" element={<NotesPage />} />
         <Route path="/" element={<EditorLayout sessionId={null} {...editorLayoutProps} />} />
         <Route path="/session/:sessionId" element={<SessionLayoutWrapper {...editorLayoutProps} />} />
         <Route path="/join" element={<JoinPage />} />
       </Routes>
+      <ImportExportModal
+        open={importExportState.open}
+        mode={importExportState.mode}
+        onClose={closeImportExport}
+        sheet={sheet}
+        characters={characters}
+        onImportConfirmed={handleImportConfirmed}
+      />
     </UserProvider>
   );
 }

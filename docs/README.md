@@ -17,25 +17,35 @@ Este é um sistema completo de gerenciamento de fichas de RPG desenvolvido em Re
 
 ```
 src/
-├── components/          # Componentes React reutilizáveis
-│   ├── AbilityCard.jsx      # Card de habilidade com dropdown e modal
-│   ├── CharacterSheet.jsx   # Componente principal da ficha
-│   ├── DiceRoller.jsx       # Sistema de rolagem de dados
-│   ├── Inventory.jsx        # Gerenciamento de inventário
-│   ├── Tabs.jsx             # Sistema de abas
-│   └── ThemeToggle.jsx      # Toggle de tema claro/escuro
+├── components/              # Componentes React reutilizáveis
+│   ├── AbilityCard.jsx          # Card de habilidade com dropdown e modal
+│   ├── CharacterSheet.jsx       # Componente principal da ficha
+│   ├── DiceRoller.jsx           # Sistema de rolagem de dados
+│   ├── ImportExportModal.jsx    # Importar/Exportar ficha em JSON
+│   ├── Inventory.jsx            # Gerenciamento de inventário
+│   ├── MapView.jsx              # Mapa compartilhado da sessão
+│   ├── NotesPanel.jsx           # Painel de Notas de Perfil
+│   ├── Tabs.jsx                 # Sistema de abas
+│   └── ThemeToggle.jsx          # Toggle de tema claro/escuro
 ├── config/
-│   └── firebase.js          # Configuração do Firebase
+│   └── firebase.js              # Configuração do Firebase
 ├── hooks/
-│   └── useTheme.js          # Hook para gerenciar tema
+│   └── useTheme.js              # Hook para gerenciar tema
+├── pages/
+│   ├── JoinPage.jsx             # Entrar em sessão por código/link
+│   ├── NotesPage.jsx            # Página /notas (Notas de Perfil)
+│   └── RulesPage.jsx            # Página de regras
 ├── services/
-│   └── rollHistoryService.js # Serviço de histórico de rolagens
+│   ├── notesService.js          # CRUD/subscribe das Notas de Perfil
+│   ├── rollHistoryService.js    # Histórico de rolagens
+│   └── sessionService.js        # Sessões de mapa, tokens e áreas
 ├── styles/
-│   └── themes.css           # Variáveis CSS para temas
+│   └── themes.css               # Variáveis CSS para temas
 ├── utils/
-│   └── dice.js              # Utilitários para rolagem de dados
-├── App.jsx                  # Componente principal
-└── RPGPlayerEditor.css      # Estilos principais
+│   ├── dice.js                  # Utilitários para rolagem de dados
+│   └── sheetIO.js               # Export/Import de fichas em JSON
+├── App.jsx                      # Componente principal
+└── RPGPlayerEditor.css          # Estilos principais
 ```
 
 ## Features Implementadas

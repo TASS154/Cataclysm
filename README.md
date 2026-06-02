@@ -49,6 +49,28 @@ Sistema completo e moderno de gerenciamento de fichas de RPG desenvolvido em Rea
 - Edição independente
 - Visualização na barra de HP
 
+### ✅ Notas de Perfil
+- Notas pessoais do usuário, independentes de qualquer ficha
+- Acessíveis pela rota `/notas`, pelo sidebar e dentro de uma sessão de mapa
+- Markdown com preview (negrito, listas, links, tabelas via GFM)
+- Tags, busca por título/corpo/tags e fixar no topo (pin)
+- Persistência em `users/{username}/notes` no Firestore
+- Cada participante de uma sessão vê apenas as próprias notas
+
+> **Diferença importante:** a aba **Anotações do Personagem** dentro da
+> ficha continua existindo e é específica daquele personagem. As **Notas
+> de Perfil** ficam atreladas à conta e servem para qualquer ficha/mesa.
+
+### ✅ Importar/Exportar fichas em JSON
+- Exportação por grupos selecionáveis:
+  - **Mecânica**: atributos, habilidades, inventário, equipamento, barras, focus
+  - **Narrativa**: anotações, lore, documentos, galeria, traços
+  - **Personalização**: atalhos de rolagem, modos
+- Importação com validação de formato e detecção de conflitos
+  (mesmo ID ou nome): você decide caso a caso entre **substituir**,
+  **criar nova ficha** ou **pular**.
+- Arquivo gerado é JSON legível, com cabeçalho `_meta` para versionamento.
+
 ## 🛠️ Tecnologias
 
 - **React 19** - Framework UI

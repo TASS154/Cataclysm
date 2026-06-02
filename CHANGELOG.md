@@ -1,5 +1,40 @@
 # Changelog - Melhorias do Sistema de Fichas de RPG
 
+## Versão 2.1.0 - Notas de Perfil + Import/Export
+
+### ✨ Novas Features
+
+#### Notas de Perfil (independentes da ficha)
+- ✅ Subcoleção `users/{username}/notes` no Firestore
+- ✅ Rota dedicada `/notas` (lista lateral + editor estilo Apple Notes)
+- ✅ Atalho no sidebar e dentro da sessão de mapa
+- ✅ Editor com Markdown e preview (suporte a GFM: tabelas, listas de tarefas)
+- ✅ Tags por nota + filtro por tag + busca por título/corpo/tags
+- ✅ Fixar no topo (pin)
+- ✅ Auto-save com debounce e indicador visual
+
+#### Importar / Exportar fichas em JSON
+- ✅ Modal único com abas Exportar / Importar
+- ✅ Export por grupos: Mecânica, Narrativa, Personalização
+- ✅ Sempre inclui campos básicos (nome, nível, imagem, info)
+- ✅ Cabeçalho `_meta` (app, versão, exportedAt, grupos)
+- ✅ Validação de payload com warnings
+- ✅ Detecção de conflitos por ID ou por nome
+- ✅ Resolução por nota: substituir / criar nova / pular
+
+#### Comunicação ao usuário
+- ✅ Aba renomeada: "Anotações" → "Anotações do Personagem"
+- ✅ Tooltip explicativo na aba (suporte a `title` em `Tabs.jsx`)
+- ✅ Banner de primeira abertura na aba (descartável, persistido em localStorage)
+- ✅ Banner de primeira abertura no painel de Notas de Perfil
+
+### 🛠️ Internas
+- Novo serviço `src/services/notesService.js` (CRUD + subscribe).
+- Novos utilitários `src/utils/sheetIO.js` (export/import).
+- Novos componentes `NotesPanel.jsx` e `ImportExportModal.jsx`.
+- Nova página `pages/NotesPage.jsx`.
+- Dependências adicionadas: `react-markdown`, `remark-gfm`.
+
 ## Versão 2.0.0 - Refatoração Completa
 
 ### ✨ Novas Features

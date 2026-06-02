@@ -75,7 +75,19 @@ users/
         - attribute: string
         - manualMod: number
         - timestamp: number
+    notes/
+      {noteId}/
+        - title: string
+        - body: string          # markdown
+        - tags: string[]
+        - pinned: boolean
+        - createdAt: number     # epoch ms
+        - updatedAt: number     # epoch ms
 ```
+
+### Notas de Perfil (`users/{username}/notes`)
+
+Notas pessoais do usuário, independentes de qualquer ficha. São acessíveis pela rota `/notas`, pelo sidebar e por dentro de uma sessão (cada participante vê só as próprias). Suportam markdown, tags, fixar (pin) e busca por título/corpo/tags.
 
 ### Sessões de mapa (multiplayer)
 
@@ -134,6 +146,10 @@ service cloud.firestore {
       }
       
       match /rollHistory/{rollId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /notes/{noteId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }

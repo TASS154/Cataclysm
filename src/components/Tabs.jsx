@@ -10,6 +10,7 @@ export default function Tabs({ tabs, activeTab, onTabChange }) {
             key={tab.id}
             className={`tab-button ${activeTab === tab.id ? "active" : ""}`}
             onClick={() => onTabChange(tab.id)}
+            title={tab.title || undefined}
           >
             {tab.icon && <span className="tab-icon">{tab.icon}</span>}
             <span className="tab-label">{tab.label}</span>

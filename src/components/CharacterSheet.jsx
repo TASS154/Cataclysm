@@ -12,9 +12,16 @@ const TAB_CONFIG = [
   { id: "abilities", label: "Habilidades", icon: "✨" },
   { id: "inventory", label: "Inventário", icon: "🎒" },
   { id: "status", label: "Status", icon: "📊" },
-  { id: "notes", label: "Anotações", icon: "📝" },
+  {
+    id: "notes",
+    label: "Anotações do Personagem",
+    icon: "📝",
+    title: "Anotações específicas deste personagem. Para notas pessoais que ficam na sua conta, use 'Notas de Perfil' no menu lateral.",
+  },
   { id: "info", label: "Info", icon: "👤" },
 ];
+
+const SHEET_NOTES_HINT_KEY = "cataclysm-sheet-notes-hint";
 
 const MAGIC_FIELDS = [
   { value: "metamagia", label: "Metamagia" },
@@ -67,6 +74,24 @@ export default function CharacterSheet({
   const [editingGalleryImageId, setEditingGalleryImageId] = useState(null);
   const [imageGallerySearch, setImageGallerySearch] = useState("");
   const galleryFileInputRef = useRef(null);
+  const [showSheetNotesHint, setShowSheetNotesHint] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (activeTab !== "notes") return;
+    if (!localStorage.getItem(SHEET_NOTES_HINT_KEY)) {
+      setShowSheetNotesHint(true);
+    }
+  }, [activeTab]);
+
+  const dismissSheetNotesHint = () => {
+    setShowSheetNotesHint(false);
+    try {
+      localStorage.setItem(SHEET_NOTES_HINT_KEY, "1");
+    } catch {
+      // ignore
+    }
+  };
 
   const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -1339,7 +1364,28 @@ export default function CharacterSheet({
       {activeTab === "notes" && (
         <div className="tab-content">
           <div className="panel notes-panel">
-            <h3>Anotações</h3>
+            <h3>Anotações do Personagem</h3>
+            <p className="notes-scope-hint muted">
+              Estas anotações ficam <strong>apenas neste personagem</strong>.
+              Para notas que valem para qualquer ficha sua, use{" "}
+              <strong>Notas de Perfil</strong> no menu lateral.
+            </p>
+            {showSheetNotesHint && (
+              <div className="notes-hint-banner inline" role="note">
+                <div>
+                  <strong>Dica:</strong> esta aba é só do personagem atual.
+                  Lore pessoal, ideias para a campanha e regras caseiras vão
+                  melhor em <em>Notas de Perfil</em> (acessível pelo menu).
+                </div>
+                <button
+                  type="button"
+                  className="btn-outline small"
+                  onClick={dismissSheetNotesHint}
+                >
+                  Entendi
+                </button>
+              </div>
+            )}
             <div className="notes-actions">
               <button
                 type="button"

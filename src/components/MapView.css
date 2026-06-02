@@ -89,6 +89,15 @@
   width: 90%;
 }
 
+.map-notes-modal {
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  width: min(1100px, 95vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+
 .map-join-modal h3 {
   margin: 0 0 8px 0;
   font-size: 1.25rem;

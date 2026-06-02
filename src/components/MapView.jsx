@@ -14,6 +14,7 @@ import {
   addArea,
   deleteArea,
 } from "../services/sessionService";
+import NotesPanel from "./NotesPanel";
 import "./MapView.css";
 
 const MAX_CELL_PX = 36;
@@ -64,6 +65,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const [areaDraftCenter, setAreaDraftCenter] = useState(null);
   const [showAreaNameModal, setShowAreaNameModal] = useState(false);
   const [coneAngleDeg, setConeAngleDeg] = useState(90);
+  const [showNotesOverlay, setShowNotesOverlay] = useState(false);
   const coneDraftRef = useRef(null);
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -631,11 +633,29 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
           <button type="button" className="btn-secondary fullwidth" style={{ marginTop: 6 }} onClick={() => setTokenMenu({ tokenId: null, x: 0, y: 0 })}>Fechar</button>
         </div>
       )}
+      {showNotesOverlay && (
+        <div className="map-join-overlay" onClick={() => setShowNotesOverlay(false)}>
+          <div
+            className="map-notes-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <NotesPanel embedded onClose={() => setShowNotesOverlay(false)} />
+          </div>
+        </div>
+      )}
       <div className="map-view-header">
         <h2>{session.name || "Mapa"}</h2>
         <span className="map-view-role">{isGM ? "Mestre" : "Jogador"}</span>
         <button type="button" className={`map-ruler-btn ${rulerMode ? "map-ruler-btn--active" : ""}`} onClick={() => { setRulerMode((m) => !m); setRulerPoints([]); }} title="Régua: clique duas células para medir">
           Régua
+        </button>
+        <button
+          type="button"
+          className="btn-outline"
+          onClick={() => setShowNotesOverlay(true)}
+          title="Suas Notas de Perfil — visíveis só para você, mestre ou jogador"
+        >
+          📝 Notas
         </button>
         {!isGM && (
           <button
