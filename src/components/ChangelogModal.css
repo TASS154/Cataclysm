@@ -1,0 +1,114 @@
+.changelog-overlay {
+  z-index: 200;
+}
+
+.changelog-modal {
+  width: min(520px, 92vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+
+.changelog-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.changelog-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.changelog-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
+}
+
+.changelog-entry {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.changelog-entry:last-child {
+  border-bottom: none;
+}
+
+.changelog-entry-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.changelog-version {
+  font-weight: 700;
+  color: var(--accent-indigo);
+}
+
+.changelog-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.changelog-entry h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.changelog-section h4 {
+  margin: 8px 0 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.changelog-section ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.login-changelog-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--panel);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px var(--shadow);
+  z-index: 50;
+}
+
+.login-changelog-btn:hover {
+  border-color: var(--accent-indigo);
+}
+
+.login-changelog-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  background: var(--danger);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

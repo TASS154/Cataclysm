@@ -1,5 +1,23 @@
 # Changelog - Melhorias do Sistema de Fichas de RPG
 
+## Versão 2.2.0 - Biblioteca do Mestre, Rodadas e Correções
+
+### 🐛 Correções
+- Modificador em rolagens múltiplas: soma dos dados + modificador **uma vez** (não mais em cada dado).
+- Vantagem/desvantagem passa a usar o modificador definido nos campos acima do botão.
+
+### ✨ Novidades — Mestre
+- **Biblioteca do Mestre** (`/biblioteca`): imagens e sons por URL ou upload.
+- **Assistente de sessão**: escolher mídia e sequência de mapas ao criar.
+- **Criar sessão rápida** mantida como atalho.
+- **Painel Mesa** no mapa: rodadas, turnos, lembretes (privados ou públicos).
+- Handouts de imagem e sons sincronizados para todos os jogadores.
+- Troca entre cenas da sequência (tokens separados por mapa).
+
+### ✨ Novidades — Geral
+- Ícone 📋 na tela de login com badge **!** até abrir as novidades.
+- Modal de changelog com histórico de versões.
+
 ## Versão 2.1.0 - Notas de Perfil + Import/Export
 
 ### ✨ Novas Features

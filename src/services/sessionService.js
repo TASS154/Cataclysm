@@ -18,17 +18,61 @@ const AREAS_SUBCOLLECTION = "areas";
 /**
  * Cria uma nova sessão de mapa. Quem cria é o mestre.
  * @param {string} gmUsername
- * @param {number} [mapWidth=20]
- * @param {number} [mapHeight=15]
- * @param {string} [name=""]
+ * @param {object} [options]
  * @returns {Promise<string>} sessionId
  */
-export async function createSession(gmUsername, mapWidth = 20, mapHeight = 15, name = "") {
+export async function createSession(gmUsername, options = {}) {
+  const {
+    mapWidth = 20,
+    mapHeight = 15,
+    name = "Sessão",
+    backgroundImageUrl = "",
+    mapSequence = null,
+    selectedImageIds = [],
+    selectedSoundIds = [],
+  } = typeof options === "object" && options !== null
+    ? options
+    : { mapWidth: arguments[1], mapHeight: arguments[2], name: arguments[3] };
+
+  const firstMap = Array.isArray(mapSequence) && mapSequence.length > 0
+    ? mapSequence[0]
+    : {
+        name: name || "Mapa 1",
+        mapWidth: Number(mapWidth) || 20,
+        mapHeight: Number(mapHeight) || 15,
+        backgroundImageUrl: backgroundImageUrl || "",
+      };
+
+  const sequence = Array.isArray(mapSequence) && mapSequence.length > 0
+    ? mapSequence.map((m, i) => ({
+        name: m.name || `Mapa ${i + 1}`,
+        mapWidth: Number(m.mapWidth) || 20,
+        mapHeight: Number(m.mapHeight) || 15,
+        backgroundImageUrl: m.backgroundImageUrl || "",
+      }))
+    : [{
+        name: firstMap.name || name || "Mapa 1",
+        mapWidth: Number(firstMap.mapWidth) || 20,
+        mapHeight: Number(firstMap.mapHeight) || 15,
+        backgroundImageUrl: firstMap.backgroundImageUrl || "",
+      }];
+
   const ref = await addDoc(collection(db, SESSIONS_COLLECTION), {
     gmUsername,
-    mapWidth: Number(mapWidth) || 20,
-    mapHeight: Number(mapHeight) || 15,
     name: name || "Sessão",
+    mapWidth: sequence[0].mapWidth,
+    mapHeight: sequence[0].mapHeight,
+    backgroundImageUrl: sequence[0].backgroundImageUrl || "",
+    mapSequence: sequence,
+    currentMapIndex: 0,
+    selectedImageIds: Array.isArray(selectedImageIds) ? selectedImageIds : [],
+    selectedSoundIds: Array.isArray(selectedSoundIds) ? selectedSoundIds : [],
+    roundTracker: {
+      currentRound: 1,
+      currentTurn: 1,
+      activeHandoutUrl: "",
+      activeSoundUrl: "",
+    },
     createdAt: serverTimestamp(),
   });
   return ref.id;
@@ -46,9 +90,18 @@ export async function getSession(sessionId) {
 }
 
 /**
- * Atualiza campos da sessão (mestre). Suporta mapWidth, mapHeight, name, backgroundImageUrl.
- * @param {string} sessionId
- * @param {{ mapWidth?: number, mapHeight?: number, name?: string, backgroundImageUrl?: string }} data
+ * Inscreve em tempo real nos dados da sessão.
+ */
+export function subscribeSession(sessionId, callback) {
+  if (!sessionId) return () => {};
+  return onSnapshot(doc(db, SESSIONS_COLLECTION, sessionId), (snap) => {
+    if (!snap.exists()) callback(null);
+    else callback({ id: snap.id, ...snap.data() });
+  });
+}
+
+/**
+ * Atualiza campos da sessão (mestre).
  */
 export async function updateSession(sessionId, data) {
   const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
@@ -57,8 +110,36 @@ export async function updateSession(sessionId, data) {
   if (data.mapHeight !== undefined) update.mapHeight = Number(data.mapHeight);
   if (data.name !== undefined) update.name = data.name;
   if (data.backgroundImageUrl !== undefined) update.backgroundImageUrl = data.backgroundImageUrl;
+  if (data.currentMapIndex !== undefined) update.currentMapIndex = Number(data.currentMapIndex);
+  if (data.mapSequence !== undefined) update.mapSequence = data.mapSequence;
+  if (data.selectedImageIds !== undefined) update.selectedImageIds = data.selectedImageIds;
+  if (data.selectedSoundIds !== undefined) update.selectedSoundIds = data.selectedSoundIds;
+  if (data.roundTracker !== undefined) update.roundTracker = data.roundTracker;
   if (Object.keys(update).length === 0) return;
   await updateDoc(sessionRef, update);
+}
+
+/**
+ * Troca para um mapa da sequência pelo índice.
+ */
+export async function switchSessionMap(sessionId, mapIndex, mapSequence) {
+  const seq = Array.isArray(mapSequence) ? mapSequence : [];
+  const idx = Math.max(0, Math.min(seq.length - 1, Number(mapIndex) || 0));
+  const m = seq[idx];
+  if (!m) return;
+  await updateSession(sessionId, {
+    currentMapIndex: idx,
+    mapWidth: m.mapWidth,
+    mapHeight: m.mapHeight,
+    backgroundImageUrl: m.backgroundImageUrl || "",
+  });
+}
+
+/**
+ * Atualiza contador de rodadas/turnos e lembretes.
+ */
+export async function updateRoundTracker(sessionId, roundTracker) {
+  await updateSession(sessionId, { roundTracker });
 }
 
 /**
@@ -95,6 +176,7 @@ export async function addToken(sessionId, data) {
     x: Number(data.x) ?? 0,
     y: Number(data.y) ?? 0,
     color: data.color || "#6b7280",
+    mapIndex: Number(data.mapIndex) ?? 0,
   });
   return ref.id;
 }

@@ -29,6 +29,8 @@ export default function DiceRoller({
   const [activeTab, setActiveTab] = useState("roll");
   const [rollHistory, setRollHistory] = useState([]);
   const [historyFilter, setHistoryFilter] = useState("");
+  const [rollModifier, setRollModifier] = useState(0);
+  const [isAdvantageRoll, setIsAdvantageRoll] = useState(false);
   const pendingRollPower = sheet?.pendingRollPower || null;
   const flashTimer = useRef(null);
   const haloTimer = useRef(null);
@@ -64,9 +66,11 @@ export default function DiceRoller({
       const totalMod = attrMod + Number(manualMod || 0);
       const raw = 19;
       const total = raw + totalMod;
-      const results = [{ raw, mod: totalMod, total }];
+      const results = [{ raw, mod: 0, total: raw }];
       setRollResults(results);
       setLastRollTotal(total);
+      setRollModifier(totalMod);
+      setIsAdvantageRoll(false);
       setHaloIndices([{ index: 0, color: "green" }]);
       setHighlightedResult(0);
       triggerFullFlash("green");
@@ -97,8 +101,7 @@ export default function DiceRoller({
 
     for (let i = 0; i < count; i++) {
       const r = rollDie(sides);
-      const finalValue = r + totalMod;
-      results.push({ raw: r, mod: totalMod, total: finalValue });
+      results.push({ raw: r, mod: 0, total: r });
 
       if (sides === 20) {
         if (r === 1) triggerFullFlash("red");
@@ -106,10 +109,13 @@ export default function DiceRoller({
         if (r === 2 || r === 19) haloIndices.push({ index: i, color: r === 2 ? "red" : "green" });
       }
     }
-    
-    const totalSum = results.reduce((sum, r) => sum + r.total, 0);
+
+    const diceSum = results.reduce((sum, r) => sum + r.raw, 0);
+    const totalSum = diceSum + totalMod;
     setRollResults(results);
     setLastRollTotal(totalSum);
+    setRollModifier(totalMod);
+    setIsAdvantageRoll(false);
     setHaloIndices(haloIndices);
     setHighlightedResult(null);
     
@@ -150,11 +156,12 @@ export default function DiceRoller({
       setLastRollTotal(null);
       return;
     }
-    const results = out.results.map((r, i) => ({ raw: r, mod: i === 0 ? attrMod : 0, total: i === 0 ? r + attrMod : r }));
+    const results = out.results.map((r) => ({ raw: r, mod: 0, total: r }));
     setRollResults(results);
     setLastRollTotal(out.total);
     setHighlightedResult(null);
-    const sides = out.results.length ? (out.total - attrMod) / out.results.length : 0;
+    setRollModifier(attrMod);
+    setIsAdvantageRoll(false);
     if (shortcut.diceString?.toLowerCase().includes("d20") && out.results.length === 1) {
       if (out.results[0] === 1) triggerFullFlash("red");
       if (out.results[0] === 20) triggerFullFlash("green");
@@ -202,6 +209,8 @@ export default function DiceRoller({
   };
 
   const rollAdvantageDisadvantage = (isAdvantage, forceConsume = false) => {
+    const attrMod = selectedModAttr === "puro" ? 0 : stats[selectedModAttr] || 0;
+    const totalMod = attrMod + Number(manualMod || 0);
     const a = [rollDie(20), rollDie(20)];
     const haloIndices = [];
     a.forEach((r, i) => {
@@ -209,32 +218,33 @@ export default function DiceRoller({
       if (r === 19) haloIndices.push({ index: i, color: "green" });
     });
     const results = a.map((r) => ({ raw: r, mod: 0, total: r }));
-    const highlightIndex = isAdvantage
-      ? results.findIndex((r) => r.raw === Math.max(...a))
-      : results.findIndex((r) => r.raw === Math.min(...a));
-    
-    const totalSum = results.reduce((sum, r) => sum + r.total, 0);
+    const chosenValue = isAdvantage ? Math.max(...a) : Math.min(...a);
+    const highlightIndex = results.findIndex((r) => r.raw === chosenValue);
+    const totalSum = chosenValue + totalMod;
+
     setRollResults(results);
     setLastRollTotal(totalSum);
+    setRollModifier(totalMod);
+    setIsAdvantageRoll(true);
     setHighlightedResult(highlightIndex);
     if (a.includes(20)) triggerFullFlash("green");
     if (a.includes(1)) triggerFullFlash("red");
     setHaloIndices(haloIndices);
-    
+
     if (username) {
       saveRollToHistory(username, {
         diceString: isAdvantage ? "Vantagem (d20x2)" : "Desvantagem (d20x2)",
         results: a,
-        modifier: 0,
+        modifier: totalMod,
         total: totalSum,
-        attribute: "puro",
-        manualMod: 0
+        attribute: selectedModAttr,
+        manualMod: Number(manualMod || 0),
       });
     }
     if ((forceConsume || pendingRollPower) && onConsumePendingRollPower) {
       onConsumePendingRollPower(pendingRollPower || "inspiration");
     }
-    
+
     if (haloIndices.length > 0) {
       clearTimeout(haloTimer.current);
       haloTimer.current = setTimeout(() => setHaloIndices([]), 1200);
@@ -249,6 +259,8 @@ export default function DiceRoller({
     const result = rollDie(20);
     setRollResults([{ raw: result, mod: 0, total: result }]);
     setLastRollTotal(result);
+    setRollModifier(0);
+    setIsAdvantageRoll(false);
     setHighlightedResult(null);
     setHaloIndices([]);
     
@@ -381,6 +393,40 @@ export default function DiceRoller({
         
         {lastRollTotal !== null && (
           <div className="roll-summary">
+            {rollResults.length > 0 && (
+              <div className="roll-breakdown muted small">
+                {isAdvantageRoll ? (
+                  <>
+                    {rollResults.map((r, i) => (
+                      <span key={i}>
+                        {i > 0 ? " · " : ""}
+                        {highlightedResult === i ? (
+                          <strong>{r.raw}</strong>
+                        ) : (
+                          <span>{r.raw}</span>
+                        )}
+                      </span>
+                    ))}
+                    {rollModifier !== 0 && (
+                      <span>
+                        {" "}
+                        {rollModifier > 0 ? `+ ${rollModifier}` : `− ${Math.abs(rollModifier)}`}
+                      </span>
+                    )}
+                  </>
+                ) : rollResults.length > 1 || rollModifier !== 0 ? (
+                  <>
+                    {rollResults.map((r) => r.raw).join(" + ")}
+                    {rollModifier !== 0 && (
+                      <span>
+                        {" "}
+                        {rollModifier > 0 ? `+ ${rollModifier}` : `− ${Math.abs(rollModifier)}`}
+                      </span>
+                    )}
+                  </>
+                ) : null}
+              </div>
+            )}
             <div className="roll-total">
               <span className="roll-total-label">Total:</span>
               <span className="roll-total-value">{lastRollTotal}</span>
@@ -389,7 +435,7 @@ export default function DiceRoller({
         )}
 
         <div className="results">
-          <div className="muted small">Resultados</div>
+          <div className="muted small">Resultados dos dados</div>
           <div className="results-grid">
             {rollResults.map((r, i) => (
               <div
@@ -397,9 +443,18 @@ export default function DiceRoller({
                 className={`result-item ${highlightedResult === i ? "highlighted" : ""}`}
               >
                 <div className="result-number">
-                  {r.raw} + {r.mod} = <strong>{r.total}</strong>
+                  {isAdvantageRoll ? (
+                    <>
+                      <strong>{r.raw}</strong>
+                      {highlightedResult === i && rollModifier !== 0 && (
+                        <span className="muted small"> + mod</span>
+                      )}
+                    </>
+                  ) : (
+                    <strong>{r.raw}</strong>
+                  )}
                 </div>
-                {diceType === "d20" && haloIndices.some((h) => h.index === i) && (
+                {(diceType === "d20" || isAdvantageRoll) && haloIndices.some((h) => h.index === i) && (
                   <div
                     className="result-halo"
                     style={{
@@ -432,7 +487,10 @@ export default function DiceRoller({
               Desvantagem (d20x2)
             </button>
           </div>
-          <div className="muted small">Dicas: 1 → falha crítica. 20 → sucesso crítico.</div>
+          <div className="muted small">
+            Defina o modificador acima, depois clique em Vantagem/Desvantagem.
+            Dicas: 1 → falha crítica. 20 → sucesso crítico.
+          </div>
         </div>
 
         <div className="shortcuts-section" style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>

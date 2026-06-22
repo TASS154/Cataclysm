@@ -19,7 +19,11 @@ import MapView from "./components/MapView";
 import JoinPage from "./pages/JoinPage";
 import RulesPage from "./pages/RulesPage";
 import NotesPage from "./pages/NotesPage";
+import GmLibraryPage from "./pages/GmLibraryPage";
 import ImportExportModal from "./components/ImportExportModal";
+import CreateSessionWizard from "./components/CreateSessionWizard";
+import ChangelogModal from "./components/ChangelogModal";
+import { hasUnreadChangelog } from "./data/changelogData";
 import { UserProvider } from "./context/UserContext";
 import { createSession } from "./services/sessionService";
 import "./RPGPlayerEditor.css";
@@ -259,6 +263,7 @@ function EditorLayout({
   onRequestRest,
   onActivateFocus,
   onOpenImportExport,
+  onOpenSessionWizard,
 }) {
   const effectiveStats = useMemo(() => getEffectiveStats(sheet), [sheet]);
   const isMobile = useIsMobile(980);
@@ -294,6 +299,12 @@ function EditorLayout({
                 <span className="nav-group-label">Sessão</span>
                 <button
                   className="btn-primary fullwidth"
+                  onClick={() => onOpenSessionWizard && onOpenSessionWizard()}
+                >
+                  Criar sessão (assistente)
+                </button>
+                <button
+                  className="btn-outline fullwidth"
                   onClick={async () => {
                     try {
                       const id = await createSession(username, 20, 15);
@@ -304,7 +315,14 @@ function EditorLayout({
                     }
                   }}
                 >
-                  Criar sessão
+                  Criar sessão rápida
+                </button>
+                <button
+                  className="btn-outline fullwidth"
+                  onClick={() => navigate("/biblioteca")}
+                  title="Imagens e sons para usar nas sessões"
+                >
+                  📚 Biblioteca do Mestre
                 </button>
                 <button
                   className="btn-primary fullwidth"
@@ -617,6 +635,9 @@ export default function RPGPlayerEditor() {
   const [contentTab, setContentTab] = useState("sheet");
   const [saveStatus, setSaveStatus] = useState("idle");
   const [importExportState, setImportExportState] = useState({ open: false, mode: "export" });
+  const [sessionWizardOpen, setSessionWizardOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
+  const [showChangelogBadge, setShowChangelogBadge] = useState(() => hasUnreadChangelog());
   const savePendingRef = useRef(0);
   const saveStatusTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -875,6 +896,23 @@ export default function RPGPlayerEditor() {
     return (
       <UserProvider username={username}>
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        <button
+          type="button"
+          className="login-changelog-btn"
+          onClick={() => setChangelogOpen(true)}
+          title="Novidades do Cataclysm"
+          aria-label="Ver novidades"
+        >
+          📋
+          {showChangelogBadge && <span className="login-changelog-badge">!</span>}
+        </button>
+        <ChangelogModal
+          open={changelogOpen}
+          onClose={() => {
+            setChangelogOpen(false);
+            setShowChangelogBadge(false);
+          }}
+        />
         <Routes>
           <Route path="/regras" element={<RulesPage />} />
           <Route path="*" element={loginForm} />
@@ -902,6 +940,7 @@ export default function RPGPlayerEditor() {
     onRequestRest: requestRest,
     onActivateFocus: activateFocusForNextAction,
     onOpenImportExport: openImportExport,
+    onOpenSessionWizard: () => setSessionWizardOpen(true),
   };
 
   return (
@@ -910,6 +949,7 @@ export default function RPGPlayerEditor() {
       <Routes>
         <Route path="/regras" element={<RulesPage />} />
         <Route path="/notas" element={<NotesPage />} />
+        <Route path="/biblioteca" element={<GmLibraryPage />} />
         <Route path="/" element={<EditorLayout sessionId={null} {...editorLayoutProps} />} />
         <Route path="/session/:sessionId" element={<SessionLayoutWrapper {...editorLayoutProps} />} />
         <Route path="/join" element={<JoinPage />} />
@@ -921,6 +961,12 @@ export default function RPGPlayerEditor() {
         sheet={sheet}
         characters={characters}
         onImportConfirmed={handleImportConfirmed}
+      />
+      <CreateSessionWizard
+        open={sessionWizardOpen}
+        onClose={() => setSessionWizardOpen(false)}
+        username={username}
+        onCreated={(id) => navigate("/session/" + id)}
       />
     </UserProvider>
   );

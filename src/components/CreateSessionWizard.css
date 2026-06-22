@@ -1,0 +1,73 @@
+.session-wizard {
+  width: min(560px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  gap: 12px;
+}
+
+.session-wizard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.session-wizard-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.session-wizard-body {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.session-wizard-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.session-map-row {
+  background: var(--glass);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.session-media-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.session-media-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.session-media-chip.selected {
+  background: rgba(107, 70, 193, 0.2);
+  border-color: var(--accent-indigo);
+}
+
+.session-wizard-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

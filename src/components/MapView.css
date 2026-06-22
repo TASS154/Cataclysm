@@ -269,3 +269,11 @@
   font-size: 14px;
   line-height: 1;
 }
+
+.map-round-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--glass);
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+}

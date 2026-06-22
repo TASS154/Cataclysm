@@ -4,7 +4,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useUser } from "../context/UserContext";
 import {
-  getSession,
+  subscribeSession,
   subscribeTokens,
   updateTokenPosition,
   addToken,
@@ -15,6 +15,8 @@ import {
   deleteArea,
 } from "../services/sessionService";
 import NotesPanel from "./NotesPanel";
+import SessionGmPanel, { SessionHandoutOverlay, SessionPublicReminder } from "./SessionGmPanel";
+import SessionBroadcastAudio from "./SessionBroadcastAudio";
 import "./MapView.css";
 
 const MAX_CELL_PX = 36;
@@ -72,14 +74,14 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
 
   useEffect(() => {
     if (!sessionId) return;
-    let cancelled = false;
-    getSession(sessionId).then((data) => {
-      if (!cancelled) {
-        if (!data) setError("Sessão não encontrada.");
-        else setSession(data);
+    const unsub = subscribeSession(sessionId, (data) => {
+      if (!data) setError("Sessão não encontrada.");
+      else {
+        setError("");
+        setSession(data);
       }
     });
-    return () => { cancelled = true; };
+    return () => unsub && unsub();
   }, [sessionId]);
 
   useEffect(() => {
@@ -95,7 +97,11 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   }, [sessionId, session]);
 
   const isGM = session && username === session.gmUsername;
-  const myTokens = tokens.filter((t) => t.ownerUsername === username);
+  const currentMapIndex = Number(session?.currentMapIndex) || 0;
+  const visibleTokens = tokens.filter(
+    (t) => (Number(t.mapIndex) || 0) === currentMapIndex
+  );
+  const myTokens = visibleTokens.filter((t) => t.ownerUsername === username);
   const hasMyToken = myTokens.length > 0;
 
   useEffect(() => {
@@ -128,6 +134,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       x: centerX,
       y: centerY,
       color: joinColor,
+      mapIndex: currentMapIndex,
     });
     if (showJoinOverlay) setShowJoinOverlay(false);
     if (showAddOwnToken) setShowAddOwnToken(false);
@@ -146,6 +153,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       x,
       y,
       color: gmTokenColor,
+      mapIndex: currentMapIndex,
     });
     setGmTokenName("");
     setGmAddAtX(String(Math.floor(session.mapWidth / 2)));
@@ -413,7 +421,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   }
 
   const renderTokens = () => {
-    return tokens.map((token) => {
+    return visibleTokens.map((token) => {
       const isDraggingThis = dragging.tokenId === token.id;
       const x = isDraggingThis ? dragging.gridX : token.x;
       const y = isDraggingThis ? dragging.gridY : token.y;
@@ -458,6 +466,9 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
 
   return (
     <div className={`map-view ${embedded ? "map-view--embedded" : ""}`}>
+      <SessionBroadcastAudio session={session} />
+      <SessionHandoutOverlay session={session} />
+      <SessionPublicReminder session={session} />
       {(showJoinOverlay || showAddOwnToken) && myCharacters.length > 0 && (
         <div className="map-join-overlay">
           <div className="map-join-modal">
@@ -646,6 +657,18 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       <div className="map-view-header">
         <h2>{session.name || "Mapa"}</h2>
         <span className="map-view-role">{isGM ? "Mestre" : "Jogador"}</span>
+        {session.roundTracker && (
+          <span className="map-round-badge muted small">
+            Rod. {session.roundTracker.currentRound || 1} · Turno {session.roundTracker.currentTurn || 1}
+          </span>
+        )}
+        <SessionGmPanel
+          session={session}
+          sessionId={sessionId}
+          username={username}
+          isGM={isGM}
+          onSessionUpdate={setSession}
+        />
         <button type="button" className={`map-ruler-btn ${rulerMode ? "map-ruler-btn--active" : ""}`} onClick={() => { setRulerMode((m) => !m); setRulerPoints([]); }} title="Régua: clique duas células para medir">
           Régua
         </button>
