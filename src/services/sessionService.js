@@ -92,12 +92,28 @@ export async function getSession(sessionId) {
 /**
  * Inscreve em tempo real nos dados da sessão.
  */
-export function subscribeSession(sessionId, callback) {
+export function subscribeSession(sessionId, callback, onError) {
   if (!sessionId) return () => {};
-  return onSnapshot(doc(db, SESSIONS_COLLECTION, sessionId), (snap) => {
-    if (!snap.exists()) callback(null);
-    else callback({ id: snap.id, ...snap.data() });
-  });
+  return onSnapshot(
+    doc(db, SESSIONS_COLLECTION, sessionId),
+    (snap) => {
+      if (!snap.exists()) callback(null);
+      else callback({ id: snap.id, ...snap.data() });
+    },
+    (err) => {
+      console.error("subscribeSession error:", err);
+      if (onError) onError(err);
+      else callback(null);
+    }
+  );
+}
+
+/**
+ * Encerra a sessão (remove o documento). Subcoleções permanecem no Firestore.
+ */
+export async function endSession(sessionId) {
+  if (!sessionId) return;
+  await deleteDoc(doc(db, SESSIONS_COLLECTION, sessionId));
 }
 
 /**

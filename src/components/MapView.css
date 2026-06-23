@@ -1,4 +1,5 @@
 .map-view {
+  position: relative;
   padding: 24px;
   min-height: 100vh;
   display: flex;
@@ -78,6 +79,16 @@
   align-items: center;
   justify-content: center;
   z-index: 100;
+}
+
+.map-view--embedded .map-join-overlay {
+  position: absolute;
+  z-index: 50;
+}
+
+.map-view--embedded .session-handout-overlay {
+  position: absolute;
+  z-index: 55;
 }
 
 .map-join-modal {

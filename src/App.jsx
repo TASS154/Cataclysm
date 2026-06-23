@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { Routes, Route, useNavigate, useParams } from "react-router-dom";
+import { Routes, Route, useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   collection,
   addDoc,
@@ -308,6 +308,7 @@ function EditorLayout({
                   onClick={async () => {
                     try {
                       const id = await createSession(username, 20, 15);
+                      setContentTab("map");
                       navigate("/session/" + id);
                     } catch (err) {
                       console.error(err);
@@ -583,7 +584,14 @@ function EditorLayout({
                 )}
               </>
             ) : (
-              <MapView sessionId={sessionId} embedded onBack={() => navigate("/")} />
+              <MapView
+                sessionId={sessionId}
+                embedded
+                onBack={() => {
+                  setContentTab("sheet");
+                  navigate("/", { replace: true });
+                }}
+              />
             )}
           </main>
 
@@ -641,6 +649,17 @@ export default function RPGPlayerEditor() {
   const savePendingRef = useRef(0);
   const saveStatusTimerRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const inSession = /^\/session\/[^/]+/.test(location.pathname);
+    if (inSession) {
+      setContentTab("map");
+      setSessionWizardOpen(false);
+    } else if (!location.pathname.startsWith("/join")) {
+      setContentTab("sheet");
+    }
+  }, [location.pathname]);
 
   const defaultTitleRef = useRef(
     typeof document !== "undefined" ? document.title : "Cataclysm"
@@ -966,7 +985,11 @@ export default function RPGPlayerEditor() {
         open={sessionWizardOpen}
         onClose={() => setSessionWizardOpen(false)}
         username={username}
-        onCreated={(id) => navigate("/session/" + id)}
+        onCreated={(id) => {
+          setSessionWizardOpen(false);
+          setContentTab("map");
+          navigate("/session/" + id);
+        }}
       />
     </UserProvider>
   );

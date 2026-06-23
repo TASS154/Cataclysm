@@ -1,7 +1,31 @@
 /** Versão exibida no badge de novidades (login). Incremente a cada release. */
-export const APP_CHANGELOG_VERSION = "2.2.0";
+export const APP_CHANGELOG_VERSION = "2.2.1";
 
 export const CHANGELOG_ENTRIES = [
+  {
+    version: "2.2.1",
+    date: "2026-06-22",
+    title: "Correções de Sessão e Mapa",
+    sections: [
+      {
+        heading: "Correções — Sessão e mapa",
+        items: [
+          "Tela em branco ao criar sessão (assistente ou rápida): overlay do assistente fechava tarde demais e cobria a interface.",
+          "Overlays do mapa (adicionar token, configurações) agora ficam contidos na área do mapa, sem cobrir a tela inteira.",
+          "Ao entrar numa sessão, a aba Mapa abre automaticamente.",
+          "Botão voltar do navegador volta ao estado normal (fecha modais e restaura a aba Ficha).",
+          "Tokens sem nome não quebram mais a renderização do mapa.",
+          "Mensagem de erro clara quando a sessão não carrega ou foi encerrada.",
+        ],
+      },
+      {
+        heading: "Novidades — Sessão",
+        items: [
+          "Botão «Terminar sessão» para o mestre (remove a sessão; «Sair da sessão» apenas sai sem apagar).",
+        ],
+      },
+    ],
+  },
   {
     version: "2.2.0",
     date: "2026-06-02",

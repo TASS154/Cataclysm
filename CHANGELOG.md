@@ -1,5 +1,18 @@
 # Changelog - Melhorias do Sistema de Fichas de RPG
 
+## Versão 2.2.1 - Correções de Sessão e Mapa
+
+### 🐛 Correções
+- Tela em branco ao criar sessão (assistente ou rápida): overlay do assistente permanecia aberto após navegar.
+- Overlays do mapa (adicionar token, configurações) cobriam a viewport inteira; agora ficam na área do mapa.
+- Ao entrar em `/session/:id`, a aba **Mapa** abre automaticamente.
+- Botão voltar do navegador restaura o estado (fecha modais, volta à aba Ficha).
+- Tokens sem `characterName` não causam mais crash na renderização.
+- Erro explícito quando a sessão não existe ou falha ao carregar.
+
+### ✨ Novidades
+- Botão **Terminar sessão** (mestre): remove a sessão do Firestore. **Sair da sessão** continua apenas saindo.
+
 ## Versão 2.2.0 - Biblioteca do Mestre, Rodadas e Correções
 
 ### 🐛 Correções

@@ -59,8 +59,8 @@ export default function CreateSessionWizard({ open, onClose, username, onCreated
         selectedImageIds,
         selectedSoundIds,
       });
-      onCreated && onCreated(id);
       onClose && onClose();
+      onCreated && onCreated(id);
     } catch (err) {
       console.error(err);
       setError(err.message || "Erro ao criar sessão.");

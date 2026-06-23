@@ -13,6 +13,7 @@ import {
   subscribeAreas,
   addArea,
   deleteArea,
+  endSession,
 } from "../services/sessionService";
 import NotesPanel from "./NotesPanel";
 import SessionGmPanel, { SessionHandoutOverlay, SessionPublicReminder } from "./SessionGmPanel";
@@ -71,16 +72,25 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const coneDraftRef = useRef(null);
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
+  const activePointerIdRef = useRef(null);
+  const dragMetaRef = useRef({ startX: 0, startY: 0, moved: false });
 
   useEffect(() => {
     if (!sessionId) return;
-    const unsub = subscribeSession(sessionId, (data) => {
-      if (!data) setError("Sessão não encontrada.");
-      else {
-        setError("");
-        setSession(data);
+    const unsub = subscribeSession(
+      sessionId,
+      (data) => {
+        if (!data) setError("Sessão não encontrada ou encerrada.");
+        else {
+          setError("");
+          setSession(data);
+        }
+      },
+      (err) => {
+        setError("Erro ao carregar sessão: " + (err?.message || "desconhecido"));
+        setSession(null);
       }
-    });
+    );
     return () => unsub && unsub();
   }, [sessionId]);
 
@@ -328,9 +338,6 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     return isGM || token.ownerUsername === username;
   };
 
-  const activePointerIdRef = useRef(null);
-  const dragMetaRef = useRef({ startX: 0, startY: 0, moved: false });
-
   const handleTokenPointerDown = (e, token) => {
     if (rulerMode || areaTool) return;
     if (!canMoveToken(token)) return;
@@ -399,7 +406,22 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     };
   }, [dragging.tokenId, sessionId, session, tokens]);
 
-  const handleBack = () => (embedded && onBack ? onBack() : navigate("/"));
+  const handleBack = () => {
+    if (embedded && onBack) onBack();
+    else navigate("/", { replace: true });
+  };
+
+  const handleEndSession = async () => {
+    if (!isGM || !sessionId) return;
+    if (!window.confirm("Terminar esta sessão? Jogadores não poderão mais acessá-la.")) return;
+    try {
+      await endSession(sessionId);
+      handleBack();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao terminar sessão: " + err.message);
+    }
+  };
 
   if (error) {
     return (
@@ -414,7 +436,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
 
   if (!session) {
     return (
-      <div className="map-view map-view--loading">
+      <div className={`map-view map-view--loading ${embedded ? "map-view--embedded" : ""}`}>
         <p>Carregando sessão...</p>
       </div>
     );
@@ -453,7 +475,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
             if (draggable && (e.key === "Enter" || e.key === " ")) e.preventDefault();
           }}
         >
-          <span className="map-token-label">{token.characterName.slice(0, 2)}</span>
+          <span className="map-token-label">{(token.characterName || "?").slice(0, 2)}</span>
         </div>
       );
     });
@@ -730,6 +752,11 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         <button type="button" className="btn-primary" onClick={handleBack}>
           Sair da sessão
         </button>
+        {isGM && (
+          <button type="button" className="btn-danger" onClick={handleEndSession}>
+            Terminar sessão
+          </button>
+        )}
       </div>
       <div
         ref={mapContainerRef}
