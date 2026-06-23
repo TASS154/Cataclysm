@@ -18,6 +18,7 @@ import {
 import NotesPanel from "./NotesPanel";
 import SessionGmPanel, { SessionHandoutOverlay, SessionPublicReminder } from "./SessionGmPanel";
 import SessionBroadcastAudio from "./SessionBroadcastAudio";
+import { formatTurnBadge, getCurrentParticipant, normalizeRoundTracker } from "../utils/roundTracker";
 import "./MapView.css";
 
 const MAX_CELL_PX = 36;
@@ -33,7 +34,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const { sessionId: paramSessionId } = useParams();
   const sessionId = sessionIdProp ?? paramSessionId;
   const navigate = useNavigate();
-  const { username } = useUser();
+  const { username } = useUser() || {};
   const [session, setSession] = useState(null);
   const [tokens, setTokens] = useState([]);
   const [error, setError] = useState("");
@@ -125,6 +126,31 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       setShowJoinOverlay(true);
     });
   }, [username, session, isGM, hasMyToken]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      setShowJoinOverlay(false);
+      setShowAddOwnToken(false);
+      setShowGmAddToken(false);
+      setShowGmSettings(false);
+      setShowAreaNameModal(false);
+      setShowNotesOverlay(false);
+      setTokenMenu({ tokenId: null, x: 0, y: 0 });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    setShowJoinOverlay(false);
+    setShowAddOwnToken(false);
+    setShowGmAddToken(false);
+    setShowGmSettings(false);
+    setShowAreaNameModal(false);
+    setShowNotesOverlay(false);
+    setTokenMenu({ tokenId: null, x: 0, y: 0 });
+  }, [sessionId]);
 
   const ensureMyCharactersLoaded = async () => {
     if (!username) return;
@@ -485,16 +511,37 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const gridH = session.mapHeight || 15;
   const cellSize = getCellSize(gridW, gridH);
   const bgUrl = session.backgroundImageUrl || "";
+  const roundTracker = normalizeRoundTracker(session.roundTracker);
+  const currentTurnPlayer = getCurrentParticipant(roundTracker);
+  const isMyTurn =
+    !isGM &&
+    currentTurnPlayer?.ownerUsername &&
+    currentTurnPlayer.ownerUsername === username;
 
   return (
     <div className={`map-view ${embedded ? "map-view--embedded" : ""}`}>
       <SessionBroadcastAudio session={session} />
       <SessionHandoutOverlay session={session} />
       <SessionPublicReminder session={session} />
-      {(showJoinOverlay || showAddOwnToken) && myCharacters.length > 0 && (
-        <div className="map-join-overlay">
-          <div className="map-join-modal">
+      {(showJoinOverlay || showAddOwnToken) && !isGM && (
+        <div
+          className="map-join-overlay"
+          onClick={() => {
+            setShowJoinOverlay(false);
+            setShowAddOwnToken(false);
+          }}
+        >
+          <div className="map-join-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{showAddOwnToken ? "Adicionar token (invocação)" : "Adicionar seu personagem"}</h3>
+            {myCharacters.length === 0 ? (
+              <>
+                <p className="muted">Você não tem fichas. Crie uma ficha antes de entrar na sessão.</p>
+                <button type="button" className="btn-primary fullwidth" onClick={handleBack}>
+                  Voltar às fichas
+                </button>
+              </>
+            ) : (
+              <>
             <div className="form-group">
               <label>Cor do token</label>
               <input type="color" value={joinColor} onChange={(e) => setJoinColor(e.target.value)} className="input-color" />
@@ -523,12 +570,14 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                 Fechar
               </button>
             )}
+              </>
+            )}
           </div>
         </div>
       )}
       {isGM && showGmAddToken && (
-        <div className="map-join-overlay">
-          <div className="map-join-modal">
+        <div className="map-join-overlay" onClick={() => setShowGmAddToken(false)}>
+          <div className="map-join-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Adicionar token</h3>
             <form onSubmit={handleGmAddToken}>
               <div className="form-group">
@@ -576,8 +625,16 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         </div>
       )}
       {showAreaNameModal && (
-        <div className="map-join-overlay">
-          <div className="map-join-modal">
+        <div
+          className="map-join-overlay"
+          onClick={() => {
+            setShowAreaNameModal(false);
+            setAreaDraft([]);
+            setAreaName("");
+            coneDraftRef.current = null;
+          }}
+        >
+          <div className="map-join-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Nome da área de efeito</h3>
             <form onSubmit={saveArea}>
               <div className="form-group">
@@ -601,8 +658,8 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         </div>
       )}
       {isGM && showGmSettings && (
-        <div className="map-join-overlay">
-          <div className="map-join-modal">
+        <div className="map-join-overlay" onClick={() => setShowGmSettings(false)}>
+          <div className="map-join-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Configurar mapa</h3>
             <p className="muted">Cada quadrado = 1 metro. Largura e altura em quadrados.</p>
             <form onSubmit={handleSaveGmSettings}>
@@ -680,8 +737,12 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         <h2>{session.name || "Mapa"}</h2>
         <span className="map-view-role">{isGM ? "Mestre" : "Jogador"}</span>
         {session.roundTracker && (
-          <span className="map-round-badge muted small">
-            Rod. {session.roundTracker.currentRound || 1} · Turno {session.roundTracker.currentTurn || 1}
+          <span
+            className={`map-round-badge small ${isMyTurn ? "map-round-badge--your-turn" : "muted"}`}
+            title={isMyTurn ? "Sua vez!" : undefined}
+          >
+            {formatTurnBadge(roundTracker)}
+            {isMyTurn && " ★"}
           </span>
         )}
         <SessionGmPanel
@@ -689,6 +750,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
           sessionId={sessionId}
           username={username}
           isGM={isGM}
+          tokens={visibleTokens}
           onSessionUpdate={setSession}
         />
         <button type="button" className={`map-ruler-btn ${rulerMode ? "map-ruler-btn--active" : ""}`} onClick={() => { setRulerMode((m) => !m); setRulerPoints([]); }} title="Régua: clique duas células para medir">
@@ -816,7 +878,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         <div className="map-areas-layer">
           {areas.map((area) => (
             <React.Fragment key={area.id}>
-              {area.cells.map((c, i) => (
+              {(area.cells || []).map((c, i) => (
                 <div
                   key={i}
                   className="map-area-cell"

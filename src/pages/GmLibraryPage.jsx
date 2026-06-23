@@ -7,6 +7,7 @@ import {
   deleteGmLibraryItem,
   readFileAsDataUrl,
 } from "../services/gmLibraryService";
+import { isMestreAccount } from "../utils/mestreAccount";
 import "./GmLibraryPage.css";
 
 function LibrarySection({ type, label, username, accept, isAudio }) {
@@ -115,6 +116,16 @@ function LibrarySection({ type, label, username, accept, isAudio }) {
 export default function GmLibraryPage() {
   const navigate = useNavigate();
   const { username } = useUser() || {};
+
+  useEffect(() => {
+    if (!isMestreAccount(username)) {
+      navigate("/", { replace: true });
+    }
+  }, [username, navigate]);
+
+  if (!isMestreAccount(username)) {
+    return null;
+  }
 
   return (
     <div className="gm-library-page">

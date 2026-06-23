@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { Routes, Route, useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   collection,
@@ -22,10 +23,12 @@ import NotesPage from "./pages/NotesPage";
 import GmLibraryPage from "./pages/GmLibraryPage";
 import ImportExportModal from "./components/ImportExportModal";
 import CreateSessionWizard from "./components/CreateSessionWizard";
+import ErrorBoundary from "./components/ErrorBoundary";
 import ChangelogModal from "./components/ChangelogModal";
 import { hasUnreadChangelog } from "./data/changelogData";
 import { UserProvider } from "./context/UserContext";
 import { createSession } from "./services/sessionService";
+import { isMestreAccount } from "./utils/mestreAccount";
 import "./RPGPlayerEditor.css";
 
 const emptySheet = {
@@ -264,10 +267,12 @@ function EditorLayout({
   onActivateFocus,
   onOpenImportExport,
   onOpenSessionWizard,
+  onCloseSessionWizard,
 }) {
   const effectiveStats = useMemo(() => getEffectiveStats(sheet), [sheet]);
   const isMobile = useIsMobile(980);
   const [mobileContentTab, setMobileContentTab] = useState("sheet");
+  const canUseMestreTools = isMestreAccount(username);
   return (
     <>
       <div className="container">
@@ -297,34 +302,39 @@ function EditorLayout({
               </div>
               <div className="nav-group">
                 <span className="nav-group-label">Sessão</span>
-                <button
-                  className="btn-primary fullwidth"
-                  onClick={() => onOpenSessionWizard && onOpenSessionWizard()}
-                >
-                  Criar sessão (assistente)
-                </button>
-                <button
-                  className="btn-outline fullwidth"
-                  onClick={async () => {
-                    try {
-                      const id = await createSession(username, 20, 15);
-                      setContentTab("map");
-                      navigate("/session/" + id);
-                    } catch (err) {
-                      console.error(err);
-                      alert("Erro ao criar sessão: " + err.message);
-                    }
-                  }}
-                >
-                  Criar sessão rápida
-                </button>
-                <button
-                  className="btn-outline fullwidth"
-                  onClick={() => navigate("/biblioteca")}
-                  title="Imagens e sons para usar nas sessões"
-                >
-                  📚 Biblioteca do Mestre
-                </button>
+                {canUseMestreTools && (
+                  <>
+                    <button
+                      className="btn-primary fullwidth"
+                      onClick={() => onOpenSessionWizard && onOpenSessionWizard()}
+                    >
+                      Criar sessão (assistente)
+                    </button>
+                    <button
+                      className="btn-outline fullwidth"
+                      onClick={async () => {
+                        try {
+                          onCloseSessionWizard && onCloseSessionWizard();
+                          const id = await createSession(username, 20, 15);
+                          flushSync(() => setContentTab("map"));
+                          navigate("/session/" + id);
+                        } catch (err) {
+                          console.error(err);
+                          alert("Erro ao criar sessão: " + err.message);
+                        }
+                      }}
+                    >
+                      Criar sessão rápida
+                    </button>
+                    <button
+                      className="btn-outline fullwidth"
+                      onClick={() => navigate("/biblioteca")}
+                      title="Imagens e sons para usar nas sessões"
+                    >
+                      📚 Biblioteca do Mestre
+                    </button>
+                  </>
+                )}
                 <button
                   className="btn-primary fullwidth"
                   onClick={() => navigate("/join")}
@@ -463,7 +473,7 @@ function EditorLayout({
               )}
           </aside>
 
-          <main className="editor">
+          <main className={`editor ${sessionId && contentTab === "map" ? "editor--session-map" : ""}`}>
             {sessionId && (
               <div className="editor-tabs">
                 <button type="button" className={contentTab === "sheet" ? "editor-tab active" : "editor-tab"} onClick={() => setContentTab("sheet")}>Ficha</button>
@@ -584,14 +594,21 @@ function EditorLayout({
                 )}
               </>
             ) : (
-              <MapView
-                sessionId={sessionId}
-                embedded
-                onBack={() => {
+              <ErrorBoundary
+                onReset={() => {
                   setContentTab("sheet");
                   navigate("/", { replace: true });
                 }}
-              />
+              >
+                <MapView
+                  sessionId={sessionId}
+                  embedded
+                  onBack={() => {
+                    setContentTab("sheet");
+                    navigate("/", { replace: true });
+                  }}
+                />
+              </ErrorBoundary>
             )}
           </main>
 
@@ -626,7 +643,7 @@ function EditorLayout({
 
 function SessionLayoutWrapper(editorLayoutProps) {
   const { sessionId } = useParams();
-  return <EditorLayout sessionId={sessionId} {...editorLayoutProps} />;
+  return <EditorLayout {...editorLayoutProps} sessionId={sessionId} />;
 }
 
 export default function RPGPlayerEditor() {
@@ -640,7 +657,10 @@ export default function RPGPlayerEditor() {
   const [theme, toggleTheme] = useTheme(username);
 
   const [sheet, setSheet] = useState(emptySheet);
-  const [contentTab, setContentTab] = useState("sheet");
+  const [contentTab, setContentTab] = useState(() => {
+    if (typeof window === "undefined") return "sheet";
+    return /^\/session\/[^/]+/.test(window.location.pathname) ? "map" : "sheet";
+  });
   const [saveStatus, setSaveStatus] = useState("idle");
   const [importExportState, setImportExportState] = useState({ open: false, mode: "export" });
   const [sessionWizardOpen, setSessionWizardOpen] = useState(false);
@@ -653,9 +673,10 @@ export default function RPGPlayerEditor() {
 
   useEffect(() => {
     const inSession = /^\/session\/[^/]+/.test(location.pathname);
+    setSessionWizardOpen(false);
+    setImportExportState((s) => (s.open ? { ...s, open: false } : s));
     if (inSession) {
       setContentTab("map");
-      setSessionWizardOpen(false);
     } else if (!location.pathname.startsWith("/join")) {
       setContentTab("sheet");
     }
@@ -959,7 +980,10 @@ export default function RPGPlayerEditor() {
     onRequestRest: requestRest,
     onActivateFocus: activateFocusForNextAction,
     onOpenImportExport: openImportExport,
-    onOpenSessionWizard: () => setSessionWizardOpen(true),
+    onOpenSessionWizard: () => {
+      if (isMestreAccount(username)) setSessionWizardOpen(true);
+    },
+    onCloseSessionWizard: () => setSessionWizardOpen(false),
   };
 
   return (
@@ -981,16 +1005,20 @@ export default function RPGPlayerEditor() {
         characters={characters}
         onImportConfirmed={handleImportConfirmed}
       />
-      <CreateSessionWizard
-        open={sessionWizardOpen}
-        onClose={() => setSessionWizardOpen(false)}
-        username={username}
-        onCreated={(id) => {
-          setSessionWizardOpen(false);
-          setContentTab("map");
-          navigate("/session/" + id);
-        }}
-      />
+      {sessionWizardOpen && isMestreAccount(username) && (
+        <CreateSessionWizard
+          open
+          onClose={() => setSessionWizardOpen(false)}
+          username={username}
+          onCreated={(id) => {
+            flushSync(() => {
+              setSessionWizardOpen(false);
+              setContentTab("map");
+            });
+            navigate("/session/" + id);
+          }}
+        />
+      )}
     </UserProvider>
   );
 }

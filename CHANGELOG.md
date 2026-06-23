@@ -1,5 +1,14 @@
 # Changelog - Melhorias do Sistema de Fichas de RPG
 
+## Versão 2.2.2 - Correção crítica — Sessão rápida
+
+### 🐛 Correções
+- **Sessão rápida** causava erro fatal (`setSessionWizardOpen` inexistente no layout) e deixava a tela só com o fundo.
+- Assistente de sessão desmonta ao criar ou ao navegar (não fica overlay preso).
+- Overlays do mapa: fechar com **Esc** ou clique fora.
+- Áreas de efeito sem `cells` não derrubam mais o mapa.
+- Mapa com altura mínima garantida; erros mostram mensagem (ErrorBoundary).
+
 ## Versão 2.2.1 - Correções de Sessão e Mapa
 
 ### 🐛 Correções

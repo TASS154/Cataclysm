@@ -9,10 +9,11 @@
 }
 
 .map-view--embedded {
-  min-height: 0;
+  min-height: 420px;
   padding: 16px;
   flex: 1;
   overflow: auto;
+  width: 100%;
 }
 
 .map-view--loading,
@@ -287,4 +288,11 @@
   background: var(--glass);
   border-radius: 999px;
   border: 1px solid var(--border-color);
+}
+
+.map-round-badge--your-turn {
+  color: var(--accent-indigo);
+  border-color: rgba(107, 70, 193, 0.5);
+  background: rgba(107, 70, 193, 0.15);
+  font-weight: 600;
 }

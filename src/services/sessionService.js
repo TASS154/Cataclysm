@@ -69,7 +69,8 @@ export async function createSession(gmUsername, options = {}) {
     selectedSoundIds: Array.isArray(selectedSoundIds) ? selectedSoundIds : [],
     roundTracker: {
       currentRound: 1,
-      currentTurn: 1,
+      currentTurnIndex: 0,
+      turnOrder: [],
       activeHandoutUrl: "",
       activeSoundUrl: "",
     },

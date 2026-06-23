@@ -305,6 +305,27 @@
   color: var(--danger);
 }
 
+.editor--session-map {
+  display: flex;
+  flex-direction: column;
+  min-height: min(80vh, 900px);
+}
+
+.editor--session-map .map-view--embedded {
+  flex: 1;
+  min-height: 420px;
+  width: 100%;
+  align-self: stretch;
+  align-items: stretch;
+}
+
+.editor--session-map .map-zoom-pan-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
 /* Editor main */
 .editor {
   background: var(--panel);

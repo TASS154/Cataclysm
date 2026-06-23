@@ -8,7 +8,16 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
-const libPath = (username, type) => `users/${username}/gmLibrary/${type}`;
+const LIBRARY_ROOT_DOC = "default";
+
+/** Coleção: users/{username}/gmLibrary/default/{type} (5 segmentos — válido no Firestore) */
+function libCollectionRef(username, type) {
+  return collection(db, "users", username, "gmLibrary", LIBRARY_ROOT_DOC, type);
+}
+
+function libDocRef(username, type, id) {
+  return doc(db, "users", username, "gmLibrary", LIBRARY_ROOT_DOC, type, id);
+}
 
 function normalizeItem(data, type) {
   return {
@@ -23,18 +32,21 @@ function normalizeItem(data, type) {
 
 export function subscribeGmLibrary(username, type, callback) {
   if (!username || !type) return () => {};
-  const col = collection(db, libPath(username, type));
+  const col = libCollectionRef(username, type);
   return onSnapshot(col, (snap) => {
     const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     callback(items);
+  }, (err) => {
+    console.error("subscribeGmLibrary error:", err);
+    callback([]);
   });
 }
 
 export async function addGmLibraryItem(username, type, data) {
   const payload = normalizeItem(data, type);
   if (!payload.url) throw new Error("URL ou arquivo obrigatório.");
-  const ref = await addDoc(collection(db, libPath(username, type)), payload);
+  const ref = await addDoc(libCollectionRef(username, type), payload);
   return ref.id;
 }
 
@@ -48,11 +60,11 @@ export async function updateGmLibraryItem(username, type, id, data) {
       : [];
   }
   if (Object.keys(update).length === 0) return;
-  await updateDoc(doc(db, libPath(username, type), id), update);
+  await updateDoc(libDocRef(username, type, id), update);
 }
 
 export async function deleteGmLibraryItem(username, type, id) {
-  await deleteDoc(doc(db, libPath(username, type), id));
+  await deleteDoc(libDocRef(username, type, id));
 }
 
 export async function readFileAsDataUrl(file, maxBytes = 800000) {

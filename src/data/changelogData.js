@@ -1,7 +1,23 @@
 /** Versão exibida no badge de novidades (login). Incremente a cada release. */
-export const APP_CHANGELOG_VERSION = "2.2.1";
+export const APP_CHANGELOG_VERSION = "2.2.2";
 
 export const CHANGELOG_ENTRIES = [
+  {
+    version: "2.2.2",
+    date: "2026-06-22",
+    title: "Correção crítica — Sessão rápida",
+    sections: [
+      {
+        heading: "Correções",
+        items: [
+          "Sessão rápida quebrava o app (erro ao fechar o assistente) — tela ficava só com o fundo.",
+          "Assistente de sessão agora desmonta de verdade ao criar ou ao mudar de rota.",
+          "Overlays do mapa fecham com Esc ou clique fora; áreas sem células não quebram mais o mapa.",
+          "Mapa embutido com altura mínima visível; erros exibem mensagem em vez de tela vazia.",
+        ],
+      },
+    ],
+  },
   {
     version: "2.2.1",
     date: "2026-06-22",
