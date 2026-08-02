@@ -19,7 +19,6 @@ import CharacterSheet from "./components/CharacterSheet";
 import MapView from "./components/MapView";
 import JoinPage from "./pages/JoinPage";
 import RulesPage from "./pages/RulesPage";
-import LorePage from "./pages/LorePage";
 import NotesPage from "./pages/NotesPage";
 import GmLibraryPage from "./pages/GmLibraryPage";
 import ImportExportModal from "./components/ImportExportModal";
@@ -357,13 +356,6 @@ function EditorLayout({
                   onClick={() => navigate("/regras")}
                 >
                   Regras
-                </button>
-                <button
-                  type="button"
-                  className="btn-outline fullwidth"
-                  onClick={() => navigate("/lore")}
-                >
-                  Lore
                 </button>
               </div>
               <div className="nav-group nav-group-end">
@@ -933,13 +925,6 @@ export default function RPGPlayerEditor() {
             >
               Ler regras do sistema
             </button>
-            <button
-              type="button"
-              className="btn-outline fullwidth login-regras"
-              onClick={() => navigate("/lore")}
-            >
-              Ler lore do universo
-            </button>
           </form>
         </div>
       </div>
@@ -966,7 +951,6 @@ export default function RPGPlayerEditor() {
         />
         <Routes>
           <Route path="/regras" element={<RulesPage />} />
-          <Route path="/lore" element={<LorePage />} />
           <Route path="*" element={loginForm} />
         </Routes>
       </UserProvider>
@@ -1003,7 +987,6 @@ export default function RPGPlayerEditor() {
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
       <Routes>
         <Route path="/regras" element={<RulesPage />} />
-        <Route path="/lore" element={<LorePage />} />
         <Route path="/notas" element={<NotesPage />} />
         <Route path="/biblioteca" element={<GmLibraryPage />} />
         <Route path="/" element={<EditorLayout sessionId={null} {...editorLayoutProps} />} />
