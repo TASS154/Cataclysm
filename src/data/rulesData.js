@@ -102,7 +102,7 @@ export const rulesSections = [
     title: "Parte IV — Críticos, Falhas e Air Break",
     content: [
       "Resultado 1: Falha Crítica — consequência grave. Resultado 2: Falha Leve — consequência narrativa. Resultado 19: dobra dados de dano. Resultado 20: dobra dados de dano + vantagem narrativa significativa. Aplicam-se a qualquer teste, inclusive iniciativa e resistências.",
-      "Air Break: quando o valor final de um ataque físico (após modificadores) é múltiplo de 7. Efeito: dano ×2,5 e recuperação de metade das barras atuais (em conjuntos, metade do máximo). Não acumula com crítico 19/20 — prevalece só o crítico. Funciona em Close Quarters e Ataques Localizados.",
+      "Air Break: quando o valor final de um ataque físico (após modificadores) é múltiplo de 7 — inclusive com crítico. Efeito: dano ×2,5 e recuperação de metade das barras atuais (em conjuntos, metade do máximo). No app, só o mestre é notificado. Funciona em Close Quarters e Ataques Localizados.",
     ],
   },
   {

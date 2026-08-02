@@ -1105,7 +1105,6 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
               />
             ))}
           {!isGM &&
-            Array.from(visibleCellSet).length >= 0 &&
             Array.from({ length: gridW * gridH }, (_, i) => {
               const x = i % gridW;
               const y = Math.floor(i / gridW);
