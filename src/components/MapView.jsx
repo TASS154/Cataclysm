@@ -1089,21 +1089,42 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
               })}
             </React.Fragment>
           ))}
-          {!isGM &&
+          {(isGM ? fogMode : true) &&
             (session.fogCells || []).map((c, i) => (
               <div
                 key={`fog-${i}`}
-                className="map-area-cell"
+                className="map-fog-cell"
                 style={{
                   left: c.x * cellSize,
                   top: c.y * cellSize,
                   width: cellSize,
                   height: cellSize,
-                  backgroundColor: "rgba(0,0,0,0.85)",
-                  pointerEvents: "none",
+                  opacity: isGM ? 0.55 : undefined,
                 }}
+                title={isGM ? "Fog of war" : undefined}
               />
             ))}
+          {!isGM &&
+            Array.from(visibleCellSet).length >= 0 &&
+            Array.from({ length: gridW * gridH }, (_, i) => {
+              const x = i % gridW;
+              const y = Math.floor(i / gridW);
+              const key = `${x},${y}`;
+              if (visibleCellSet.has(key)) return null;
+              if ((session.fogCells || []).some((c) => c.x === x && c.y === y)) return null;
+              return (
+                <div
+                  key={`los-${key}`}
+                  className="map-fog-cell"
+                  style={{
+                    left: x * cellSize,
+                    top: y * cellSize,
+                    width: cellSize,
+                    height: cellSize,
+                  }}
+                />
+              );
+            })}
         </div>
         {((areaDraftCenter ? [areaDraftCenter] : []).concat(areaDraft)).length > 0 && (
           <div className="map-areas-layer map-areas-layer--draft">

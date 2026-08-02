@@ -168,12 +168,10 @@ export function critEffect(d20) {
   return null;
 }
 
-/** Air Break: total final múltiplo de 7 e d20 ≠ 19/20. */
-export function isAirBreak(finalTotal, d20) {
+/** Air Break: total final múltiplo de 7 (aplica mesmo com crítico). */
+export function isAirBreak(finalTotal, _d20) {
   const total = Number(finalTotal);
-  const die = Number(d20);
   if (!Number.isFinite(total) || total === 0) return false;
-  if (die === 19 || die === 20) return false;
   return total % 7 === 0;
 }
 
@@ -292,7 +290,7 @@ export function tipText(key) {
     "fail-light": "2 — Falha Leve: consequência narrativa.",
     "crit-19": "19 — Dobra os dados de dano.",
     "crit-20": "20 — Dobra dano + vantagem narrativa.",
-    "air-break": "Air Break: total múltiplo de 7 (não crítico). Dano ×2,5 e recupera metade das barras atuais.",
+    "air-break": "Air Break: total múltiplo de 7 (também com crítico). Dano ×2,5 e recupera metade das barras atuais.",
     overheat: "Overheat: recurso zerado fica inutilizável até recuperar ≥ metade do máximo ou Descanso Longo.",
     ferimentos: "Ferimentos: golpe ≥25/50/75% do PV máx → Leve / Grave / Crítico.",
     esquiva: "Esquiva (Reação): 1d20+DES vs ataque. Sucesso evita; falha = Dano Agravado.",

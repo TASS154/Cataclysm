@@ -242,6 +242,40 @@
   opacity: 0.6;
 }
 
+.map-fog-cell {
+  position: absolute;
+  border: none;
+  border-radius: 0;
+  pointer-events: none;
+  background: hsl(0, 0%, 18%);
+  animation: map-fog-gray-hue 4.5s ease-in-out infinite;
+  filter: saturate(0);
+  opacity: 0.92;
+}
+
+@keyframes map-fog-gray-hue {
+  0% {
+    background-color: hsl(0, 0%, 12%);
+    filter: saturate(0) hue-rotate(0deg) brightness(0.85);
+  }
+  25% {
+    background-color: hsl(210, 4%, 22%);
+    filter: saturate(0) hue-rotate(40deg) brightness(0.95);
+  }
+  50% {
+    background-color: hsl(0, 0%, 28%);
+    filter: saturate(0) hue-rotate(90deg) brightness(1.05);
+  }
+  75% {
+    background-color: hsl(220, 3%, 16%);
+    filter: saturate(0) hue-rotate(200deg) brightness(0.9);
+  }
+  100% {
+    background-color: hsl(0, 0%, 12%);
+    filter: saturate(0) hue-rotate(360deg) brightness(0.85);
+  }
+}
+
 .map-ruler-line {
   position: absolute;
   height: 4px;

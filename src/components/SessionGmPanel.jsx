@@ -3,6 +3,7 @@ import { subscribeGmLibrary } from "../services/gmLibraryService";
 import {
   updateRoundTracker,
   switchSessionMap,
+  updateSession,
 } from "../services/sessionService";
 import { subscribeSessionRolls } from "../services/sessionRollService";
 import {
@@ -40,6 +41,8 @@ export default function SessionGmPanel({
   const [combatSheets, setCombatSheets] = useState({});
   const [combatLog, setCombatLog] = useState([]);
   const [damageDraft, setDamageDraft] = useState({});
+  const [airBreakBanner, setAirBreakBanner] = useState(null);
+  const lastAirBreakSeenRef = React.useRef(0);
 
   const tracker = normalizeRoundTracker(session?.roundTracker);
   const currentParticipant = getCurrentParticipant(tracker);
@@ -82,6 +85,44 @@ export default function SessionGmPanel({
     if (isGM && showPanel) refreshCombatSheets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGM, showPanel, tracker.currentTurnIndex, tracker.currentRound, tokens.length]);
+
+  useEffect(() => {
+    if (!isGM) return;
+    const ab = session?.lastAirBreak;
+    if (!ab?.at || ab.at <= lastAirBreakSeenRef.current) return;
+    lastAirBreakSeenRef.current = ab.at;
+    setAirBreakBanner(ab);
+    setShowPanel(true);
+  }, [isGM, session?.lastAirBreak]);
+
+  const applyAirBreakToCharacter = async () => {
+    const ab = airBreakBanner || session?.lastAirBreak;
+    if (!ab?.ownerUsername || !ab?.characterId) {
+      alert("Air Break: personagem não identificado. Aplique manualmente (dano ×2,5 + metade das barras atuais).");
+      return;
+    }
+    const sheet = await fetchCharacterSheet(ab.ownerUsername, ab.characterId);
+    if (!sheet) {
+      alert("Não foi possível carregar a ficha.");
+      return;
+    }
+    const s = JSON.parse(JSON.stringify(sheet));
+    if (!s.bars) s.bars = {};
+    for (const key of ["hp", "inata", "ether", "vigor"]) {
+      const cur = Number(s.bars[key]) || 0;
+      s.bars[key] = cur + Math.floor(cur / 2);
+    }
+    await writeCharacterSheet(ab.ownerUsername, ab.characterId, s);
+    await updateSession(sessionId, { lastAirBreak: null });
+    setAirBreakBanner(null);
+    refreshCombatSheets();
+    alert(`Air Break aplicado em ${ab.characterName}: +metade das barras atuais (lembrete: dano ×2,5).`);
+  };
+
+  const dismissAirBreak = async () => {
+    setAirBreakBanner(null);
+    await updateSession(sessionId, { lastAirBreak: null }).catch(() => {});
+  };
 
   const sessionImages = images.filter((i) => selectedImageIds.includes(i.id));
   const sessionSounds = sounds.filter((s) => selectedSoundIds.includes(s.id));
@@ -230,14 +271,58 @@ export default function SessionGmPanel({
         onClick={() => setShowPanel((v) => !v)}
         title="Ferramentas do mestre: rodadas, mídia, mapas"
       >
-        ⚙️ Mesa
+        ⚙️ Mesa{airBreakBanner ? " · Air Break!" : ""}
       </button>
+      {airBreakBanner && (
+        <div
+          className="session-airbreak-toast"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 1200,
+            maxWidth: 360,
+            padding: 14,
+            borderRadius: 10,
+            background: "rgba(17,17,20,0.95)",
+            border: "1px solid rgba(245,158,11,0.55)",
+            boxShadow: "0 8px 28px rgba(0,0,0,0.45)",
+            color: "var(--text-primary, #fff)",
+          }}
+        >
+          <strong>Air Break!</strong>
+          <div className="muted small" style={{ marginTop: 6 }}>
+            {airBreakBanner.characterName} ({airBreakBanner.roller}) — d20 {airBreakBanner.d20}, total {airBreakBanner.total}
+          </div>
+          <div className="muted small">{airBreakBanner.detail}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <button type="button" className="btn-primary small" onClick={applyAirBreakToCharacter}>
+              Aplicar (metade das barras)
+            </button>
+            <button type="button" className="btn-outline small" onClick={dismissAirBreak}>
+              Dispensar
+            </button>
+          </div>
+        </div>
+      )}
       {showPanel && (
         <div className="session-gm-panel">
           <div className="session-gm-panel-header">
             <strong>Ferramentas do Mestre</strong>
             <button type="button" className="modal-close" onClick={() => setShowPanel(false)}>×</button>
           </div>
+
+          {airBreakBanner && (
+            <section className="session-gm-block" style={{ borderColor: "rgba(245,158,11,0.5)" }}>
+              <h4>Air Break (só mestre)</h4>
+              <p className="muted small">
+                {airBreakBanner.characterName}: total {airBreakBanner.total} (d20 {airBreakBanner.d20}). Aplica mesmo com crítico.
+              </p>
+              <button type="button" className="btn-primary small" onClick={applyAirBreakToCharacter}>
+                Aplicar Air Break
+              </button>
+            </section>
+          )}
 
           <section className="session-gm-block">
             <h4>Rodadas e turnos</h4>

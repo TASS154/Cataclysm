@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { rollDie, dieSides, rollDiceString } from "../utils/dice";
 import { saveRollToHistory, getRollHistory } from "../services/rollHistoryService";
 import { saveSessionRoll } from "../services/sessionRollService";
+import { updateSession } from "../services/sessionService";
 import { STAT_LABELS, ALL_STATS, critEffect, isAirBreak, tipText } from "../utils/rampageRules";
 import "./DiceRoller.css";
 
@@ -55,8 +56,20 @@ export default function DiceRoller({
     const tips = [];
     const crit = critEffect(d20Value);
     if (crit) tips.push(crit);
-    if (isAirBreak(finalTotal, d20Value)) {
-      tips.push({ code: "air-break", title: "Air Break!", detail: tipText("air-break") });
+    // Air Break: notifica só o mestre da sessão (não o jogador)
+    if (isAirBreak(finalTotal, d20Value) && sessionId) {
+      updateSession(sessionId, {
+        lastAirBreak: {
+          at: Date.now(),
+          roller: username || "?",
+          characterName: sheet?.name || username || "?",
+          characterId: sheet?.id || null,
+          ownerUsername: username || null,
+          d20: Number(d20Value),
+          total: Number(finalTotal),
+          detail: tipText("air-break"),
+        },
+      }).catch(console.error);
     }
     setRuleTip(tips.length ? tips : null);
   };
@@ -420,25 +433,6 @@ export default function DiceRoller({
                 <div className="muted small">{t.detail}</div>
               </div>
             ))}
-            {ruleTip.some((t) => t.code === "air-break") && onUpdateSheet && (
-              <button
-                type="button"
-                className="btn-primary small"
-                style={{ marginTop: 4 }}
-                onClick={() => {
-                  const s = JSON.parse(JSON.stringify(sheet));
-                  if (!s.bars) s.bars = {};
-                  for (const key of ["hp", "inata", "ether", "vigor"]) {
-                    const cur = Number(s.bars[key]) || 0;
-                    s.bars[key] = cur + Math.floor(cur / 2);
-                  }
-                  onUpdateSheet(s);
-                  alert("Air Break aplicado: +metade das barras atuais (lembrete: dano ×2,5 na narrativa).");
-                }}
-              >
-                Aplicar Air Break (recupera metade das barras atuais)
-              </button>
-            )}
           </div>
         )}
 
