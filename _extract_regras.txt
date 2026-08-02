@@ -1,0 +1,752 @@
+RAMPAGE
+LIVRO DE REGRAS
+Um RPG de combate cinematográfico, estratégia e escalada de poder
+Edição Definitiva — Versão Consolidada
+Sumário
+Filosofia do Sistema
+Princípios Fundamentais de Rampage
+Parte I — Conceitos Gerais
+Testes
+Classes de Dificuldade (CD)
+Arredondamentos
+Distância e Posicionamento
+Tipos de Dano
+Parte II — Criação de Personagem
+Atributos
+Distribuição de Pontos
+Vida (PV)
+Habilidades e Poder
+Parte III — Recursos
+Recuperação de Recursos
+Descansos
+Inspiração e Certeza
+Parte IV — Combate
+Estrutura do Turno
+Iniciativa
+Ataques de Oportunidade
+Resolução de Ataques
+Fluxo de Resolução
+Classe de Armadura (CA)
+Defesa
+Ataques Conjuntos
+Ataques Localizados
+Conversão de Estilo de Ataque
+Acertos Críticos e Falhas
+Air Break
+Parte V — Velocidade, Força e Efetividade
+Velocidade Relativa
+Força Relativa
+Efetividade de Atributo
+Parte VI — Ferimentos
+Escalonamento de Ferimentos
+Acúmulo e Cura
+Parte VII — Estados
+Parte VIII — Overheat e Gerenciamento de Recursos
+Overheat
+Overheat Forçado
+Parte IX — Votos Vinculativos
+Momentâneo
+Permanente
+Parte X — Cenário e Objetos
+Dano em Área
+Objetos e Estruturas
+Parte XI — Morte e Consequências
+Salva-Guarda
+Morte
+Parte XII — Progressão e Poder
+Maestria (a partir do nível 25)
+Escala de Poder
+Parte XIII — Tipos de Oponentes
+Humanos
+Demônios
+Parte XIV — O Mestre
+Arbitragem
+Balanceamento e Desafio
+Identidade do Sistema
+Apêndice A — Tabela de Referência Rápida
+Fórmulas Essenciais
+Gatilhos Numéricos
+Movimento e Alcance
+Ordem de Resolução do Dano
+Resistências
+Apêndice B — Exemplos de Combate
+Exemplo 1 — Combate Simples
+Exemplo 2 — Ataque Conjunto
+Exemplo 3 — Close Quarters e Interceptação
+Exemplo 4 — Overheat e Voto Vinculativo
+Exemplo 5 — Ataque Localizado com Air Break
+Apêndice C — Glossário
+Apêndice D — Estrutura da Ficha de Personagem
+Informações do Personagem
+Atributos
+Barras de Recurso
+Classe de Armadura
+Habilidades
+Equipamento e Inventário
+Estados e Foco
+Notas, Lore e Traços
+Filosofia do Sistema
+Rampage é um sistema focado em combate cinematográfico e estratégia tática. Os números importam, mas o objetivo nunca é vencer apenas acumulando bônus: os jogadores devem alterar as condições do combate através de posicionamento, Votos Vinculativos, itens, Orbes, habilidades e trabalho em equipe.
+Um inimigo não deve ser derrotado apenas porque o personagem possui números maiores. Muitas vezes será necessário encontrar uma forma de contornar suas vantagens.
+Quando a narrativa e as regras entram em conflito, cabe ao Mestre decidir — mas a inclinação padrão do sistema é sempre em favor da narrativa, desde que isso não invalide compromissos assumidos por regras (como Votos Vinculativos ou resultados de rolagens).
+Rampage é um sistema modular. Ele é assumidamente voltado para ação estilo shonen/anime, mas comporta adaptação para outros gêneros. É possível, por exemplo, remover inteiramente o recurso de Éter (e as Artes Divinas associadas a ele) sem que isso comprometa o funcionamento das demais partes do sistema.
+Princípios Fundamentais de Rampage
+Os princípios abaixo orientam toda a interpretação das regras. Sempre que uma situação não estiver explicitamente prevista neste livro, Mestre e jogadores devem utilizá-los como referência para chegar à decisão mais coerente com o espírito do sistema.
+1. As Regras Criam o Espetáculo
+Rampage foi desenvolvido para que cenas cinematográficas surjam naturalmente da interação entre suas mecânicas. Grandes momentos não dependem de decisões arbitrárias do Mestre, mas do domínio das regras pelos jogadores. Quando um feito extraordinário acontece, ele deve parecer merecido.
+2. Criatividade Supera Repetição
+Não existe uma estratégia perfeita. Todo inimigo possui pontos fortes e fracos. Explorar o cenário, utilizar habilidades de maneira incomum, preparar armadilhas, criar Votos Vinculativos ou combinar ações com aliados será, quase sempre, mais eficiente do que repetir a mesma ação turno após turno.
+3. Todo Poder Tem um Preço
+Nenhum poder deve existir sem um custo proporcional. Quanto maior o benefício obtido, maior deve ser o risco, a limitação ou o sacrifício exigido — através de custos de recursos, Overheat, Votos Vinculativos, tempo de preparação, restrições de uso ou mecânica equivalente.
+4. A Narrativa Nasce das Mecânicas
+As regras não interrompem a narrativa; elas a constroem. Ferimentos, Air Breaks, Close Quarters, Estados, Votos Vinculativos e demais sistemas existem para produzir momentos memoráveis de forma orgânica. Ao descrever uma cena, o Mestre deve utilizar os resultados das mecânicas como fundamento da narrativa.
+5. O Mestre Arbitra, Não Reescreve
+O Mestre possui liberdade para interpretar situações inéditas, definir CDs, descrever consequências e adaptar o mundo. Entretanto, durante um conflito, as regras estabelecidas permanecem válidas. Se uma estratégia funciona de acordo com o sistema, ela também funciona dentro da narrativa. O desafio deve surgir da construção dos encontros, nunca da alteração improvisada das regras.
+6. O Cenário Também Luta
+Posicionamento, cobertura, altura, obstáculos, clima, terreno e objetos fazem parte do combate. O ambiente deve ser tratado como um elemento ativo da batalha, capaz de favorecer ou prejudicar qualquer participante.
+7. Toda Escolha Deve Ter Consequências
+Cada decisão modifica o estado do combate. Gastar uma Reação, aceitar um Ferimento, entrar em Overheat, assumir um Voto Vinculativo ou permanecer em Close Quarters altera as possibilidades disponíveis nos turnos seguintes.
+8. A Vitória é Construída
+Personagens não vencem apenas porque possuem atributos maiores. Eles vencem porque criam oportunidades. Mesmo um adversário muito superior pode ser derrotado quando suas vantagens são neutralizadas por planejamento, cooperação e criatividade — e um personagem extremamente poderoso pode ser derrotado caso lute de maneira previsível.
+9. Consistência Acima da Conveniência
+As regras devem produzir resultados previsíveis e coerentes. Situações semelhantes devem ser resolvidas da mesma forma, independentemente da importância narrativa dos envolvidos.
+10. O Limite é a Imaginação, Não a Ficha
+As regras definem como as ações são resolvidas, não quais ações podem ser tentadas. Sempre que uma ideia fizer sentido dentro da narrativa, o jogador pode propô-la. Cabe ao Mestre apenas determinar como essa ação será resolvida utilizando as mecânicas existentes.
+Parte I — Conceitos Gerais
+Testes
+Todo teste que não seja um ataque (arrombar uma porta, convencer alguém, escalar uma parede etc.) é resolvido com:
+1d20 + atributo relevante
+O sistema não utiliza perícias ou proficiências. Qualquer atributo pode ser aplicado de forma criativa, desde que o jogador justifique narrativamente a abordagem — cabe ao Mestre ajustar a CD conforme a lógica da tentativa.
+Classes de Dificuldade (CD)
+Não existe uma tabela fixa de CDs. O Mestre escolhe livremente o valor de cada CD, levando em conta o nível médio do grupo — uma CD 20 é um feito enorme para um personagem de nível 3, mas apenas um desafio médio para um personagem de nível 10.
+Arredondamentos
+Toda vez que uma regra exigir arredondamento (divisões de atributo, metade de uma rolagem, metade de uma barra etc.), o resultado é sempre arredondado para baixo, sem exceções.
+Distância e Posicionamento
+Todas as distâncias do sistema são medidas em metros. Rampage foi desenhado para uso em mesas online com ferramentas de mapa: cada quadrado, casa ou hexágono de qualquer ferramenta utilizada equivale a 1 metro.
+O uso de mapa é opcional. Cenas de combate simples ou muito dinâmicas funcionam bem em teatro da mente; cenários mais complexos costumam se beneficiar de um mapa.
+Alcance
+Alcance
+Distância
+Ataques desarmados (punhos, chutes)
+1 metro
+Armas corpo a corpo
+2 metros
+Movimento por Ação Bônus
+4 metros
+Movimento por Ação Completa
+5 metros
+Movimento máximo por rodada
+9 metros
+Cobertura
+Cobertura é tratada de forma totalmente narrativa. O Mestre aumenta a CA efetiva do alvo conforme julgar adequado, sem necessidade de declarar níveis fixos (meia cobertura, cobertura total etc.) ou o valor exato do bônus.
+Tipos de Dano
+Existem apenas quatro categorias de dano:
+Dano Físico — cortes, perfurações, impacto, esmagamento, disparos, mordidas. A forma como a arma é usada determina o tipo narrativo do golpe, mas ele permanece Dano Físico.
+Dano Elemental — fogo, gelo, eletricidade, vento, água, terra.
+Dano Mágico — energia arcana pura, sem elemento associado.
+Dano Violento — explosões, desabamentos, grandes quedas, impactos colossais.
+Resistências, Vulnerabilidades e Imunidades
+Resistências são sempre narrativas: é o Mestre quem determina quais criaturas possuem cada uma delas. Os efeitos mecânicos, porém, seguem sempre o mesmo padrão:
+Condição
+Efeito
+Resistente
+Metade do dano recebido
+Vulnerável
+1,5× de dano (soma-se metade da rolagem de dano)
+Frágil
+Dobro do dano recebido
+Imune
+0 de dano
+Não existe “dano verdadeiro” no sistema: nenhum efeito ignora resistências, vulnerabilidades ou imunidades.
+Ordem de Aplicação dos Modificadores
+Para evitar discussões durante a mesa, todo dano segue sempre a mesma ordem de resolução:
+Ataque → Crítico → Air Break → Modificador → Resistência → Ferimento → Estado
+Buffs e Debuffs
+Bônus e penalidades provenientes de habilidades diferentes se acumulam normalmente. Efeitos idênticos vindos da mesma fonte não se acumulam — apenas se atualizam.
+Parte II — Criação de Personagem
+Atributos
+Personagens utilizam quatro atributos gerais e três atributos especiais:
+Físico (FIS) — força, resistência, massa muscular, capacidade atlética geral.
+Destreza (DES) — velocidade, reflexos, coordenação, precisão.
+Mentalidade (MEN) — inteligência, conhecimento, percepção, raciocínio, bom senso, capacidade analítica.
+Carisma (CAR) — presença, liderança, manipulação social, força de personalidade.
+Inata — utilizado apenas para técnicas Inatas.
+Arte Divina — utilizado apenas para Artes Divinas.
+Mágica — utilizado apenas para Magias.
+Rampage historicamente derivou FIS e MEN de seis atributos clássicos (Força, Constituição, Inteligência, Sabedoria). Essa derivação permanece válida como referência conceitual:
+FIS = (FOR + CON) ÷ 2      MEN = (INT + SAB) ÷ 2   — sempre arredondado para cima
+Distribuição de Pontos
+Todos os atributos começam em -1. Um atributo continua gerando penalidade normalmente mesmo enquanto estiver negativo — não existe piso efetivo em 0.
+O personagem deve, obrigatoriamente, começar no nível 3 no mínimo. A criação segue o seguinte processo:
+O jogador escolhe um atributo para ser o Atributo Inicial, que começa em 1 (em vez de -1).
+O jogador recebe 12 pontos para distribuir livremente entre todos os atributos.
+A cada nível ganho (incluindo os níveis necessários para alcançar o nível mínimo inicial), o personagem recebe +3 pontos para distribuir livremente e +1 automático no Atributo Inicial.
+Não existe limite máximo para nenhum atributo.
+Exemplo
+Um personagem começa com 1 no Atributo Inicial e 12 pontos livres (pacote de criação). Para alcançar o nível 3 mínimo, ele recebe os ganhos de nível 2 e nível 3: +3 pontos livres em cada um (totalizando 18 pontos livres) e +1 no Atributo Inicial em cada um (totalizando Atributo Inicial 3). No nível 5, ele recebe novamente +3 pontos livres e +1 no Atributo Inicial; o mesmo ocorre no nível 15 e em todos os níveis seguintes.
+Vida (PV)
+PV = 3d12 + 1d12 para cada ponto de FIS
+Não existe limite de cura por turno.
+Habilidades e Poder
+Cada personagem escolhe uma Inata — poderes naturais de nascença. Inatas são exclusivas: apenas um jogador na mesa pode possuir cada Inata. O personagem começa com três habilidades básicas de sua Inata.
+Artes Divinas são concedidas por espíritos através de pactos — existem apenas nove espíritos no total. Personagens não começam com um espírito vinculado; habilidades de Arte Divina são conquistadas ao longo da campanha.
+Magias são a manipulação da própria alma através de estudo. Ao criar o personagem, o jogador rola 1d6 para definir seu campo dominante de magia.
+Campos de Magia
+Magias do campo dominante do personagem custam menos Vigor e são aprendidas mais rapidamente. Utilizar magias de outro campo exige remanejamento de Vigor, levando cerca de um minuto. A técnica Ponto Morto permite essa troca instantaneamente, mas aumenta permanentemente o custo de Vigor enquanto estiver ativa.
+Manipulação
+Invocação
+Conjuração
+Transmutação
+Abjuração
+Metamagia
+Categorias de Habilidade
+Toda habilidade do sistema se encaixa em pelo menos uma das seguintes categorias:
+Física
+Inata
+Divina
+Mágica
+Passiva
+Reação
+Suprema
+Estrutura Mínima de uma Técnica
+Toda técnica — de qualquer categoria — deve possuir, no mínimo, os seguintes elementos definidos:
+Custo
+Tipo
+Alcance
+Tempo de conjuração
+Duração
+Manutenção
+Qualquer técnica, sem exceções, pode receber Votos Vinculativos.
+Parte III — Recursos
+O sistema utiliza quatro barras de recursos:
+Recurso
+Utilizado em
+Ganho por nível
+Teto
+Vida (PV)
+Resistência física
+3d12 + 1d12 por ponto de FIS
+Sem limite
+PE
+Habilidades Inatas
++200 por nível
+Sem limite
+Éter
+Artes Divinas
++100 por nível
+Sem limite
+Vigor
+Magias
++50 por nível
+Sem limite
+Éter pode crescer além do padrão ao seguir a moral e a filosofia do espírito vinculado. Vigor pode crescer além do padrão através de estudo, introspecção e estados emocionais positivos.
+Recuperação de Recursos
+PE
+Todos os personagens recuperam automaticamente 10 × Nível de PE no início de cada turno (aproximadamente 5% da barra). Essa recuperação representa o fluxo natural de energia durante o combate e evita que personagens fiquem inutilizados por longos períodos, sem eliminar a importância do gerenciamento de recursos.
+Éter
+Éter possui recuperação mecânica automática de 5 × Nível por turno, somada a recuperação narrativa concedida pelo Mestre (reforçar ideais, realizar um voto, um ritual, uma bênção, comunhão espiritual, grande clareza mental).
+Vigor
+Vigor não possui recuperação mecânica automática — apenas narrativa, concedida pelo Mestre quando o personagem ganha confiança, entra em fúria, supera um obstáculo, protege alguém importante, derrota um inimigo relevante ou recebe incentivo dos aliados.
+Intensidade da Recuperação Narrativa
+Situação
+Recuperação sugerida
+Pequeno momento favorável
+5%
+Grande vantagem narrativa
+10% a 20%
+Mudança decisiva na batalha
+25% a 50%
+Evento extraordinário
+Recuperação total
+Filosofia do PE
+O PE não existe para impedir o uso de habilidades — ele existe para limitar por quanto tempo um personagem consegue manter seu poder ativo. A maioria das habilidades possui custo de ativação e custo de manutenção; o gerenciamento consiste em equilibrar recuperação, manutenção e explosões de poder, evitando o Overheat.
+Descansos
+Descanso Curto
+Recupera 50% das barras atuais (não do máximo).
+Descanso Longo
+Restaura completamente PV, PE, Éter e Vigor, e remove estados negativos, salvo exceções descritas explicitamente na habilidade ou condição que não são removidas por descanso longo. Caso o personagem esteja totalmente saudável ao realizar o Descanso Longo, ele recebe 1 Inspiração (máximo de 3).
+Inspiração e Certeza
+Inspiração concede vantagem em uma ação. Um personagem pode acumular até 3 Inspirações.
+3 Inspirações podem ser convertidas em 1 Certeza — um sucesso automático em uma ação — mas essa conversão exige que o jogador aceite fazê-la; nunca é automática ou obrigatória.
+Parte IV — Combate
+Estrutura do Turno
+O combate utiliza d20. Cada turno o personagem possui:
+Ação Completa
+Ação Bônus
+Ações Livres
+Reação
+Não existe a opção de atrasar ou “segurar” a iniciativa.
+Iniciativa
+1d20 (sem modificadores de atributo)
+Em caso de empate, age primeiro quem realizou sua rolagem primeiro.
+As regras gerais de Crítico (ver adiante) também se aplicam à iniciativa: um resultado crítico (20) permite ao personagem agir duas vezes na primeira rodada; uma falha crítica (1) faz o personagem perder completamente seu primeiro turno.
+Ataques de Oportunidade
+Não existe ataque de oportunidade automático. No entanto, se uma criatura passar a 1 metro (ou o alcance definido em sua ficha) de outra criatura, esta pode rolar um ataque contra quem está passando.
+Resolução de Ataques
+Todo ataque é resolvido com:
+1d20 + atributo relevante + eventual bônus
+O dano de cada ataque é declarado individualmente pela arma ou habilidade utilizada — não existe uma fórmula genérica de dano. Cada arma ou habilidade define seus próprios dados e forma de cálculo.
+Realizar mais de um ataque em uma única Ação Completa não é possível por padrão; isso depende exclusivamente de uma habilidade ou arma que conceda essa possibilidade explicitamente.
+Fluxo de Resolução
+A resolução padrão de um ataque segue sempre a seguinte ordem:
+Rolagem de Acerto
+Defesa do alvo (Esquiva, Aguentar, comparação passiva com a CA, ou resistência quando especificado)
+Aplicação de resistências narrativas
+Rolagem de Dano
+Redução de PV
+Verificação de Ferimentos
+Classe de Armadura (CA)
+CA = (1,5 × Nível) + (FIS ÷ 4) + (DES ÷ 4) — arredondado para baixo
+A cobertura pode aumentar a CA efetiva de forma narrativa (ver Parte I). Não existe outra forma padrão de aumentar a CA temporariamente além de habilidades específicas e cobertura.
+Exemplo
+Personagem de nível 10, com FIS 20 e DES 16: CA Base = 15; bônus de FIS = +5; bônus de DES = +4. CA Final = 24.
+Defesa
+Se o defensor não quiser gastar uma Reação, o ataque é simplesmente comparado à sua CA (defesa passiva).
+Esquiva
+Gasta Reação. O defensor rola:
+1d20 + DES contra o resultado final do ataque
+Sucesso: evita completamente o ataque.
+Falha: o ataque causa Dano Agravado.
+A Esquiva só pode ser usada contra ataques percebidos. Não é possível esquivar de ataques em área instantânea (efeitos que surgem diretamente na área do alvo, como espinhos brotando do chão) — apenas de ataques direcionados e visíveis.
+Aguentar
+Reação alternativa à Esquiva, mas que não gasta Reação. O defensor rola:
+1d20 + FIS contra o resultado final do ataque
+Sucesso: reduz o dano pela metade.
+Falha: o ataque causa Dano Agravado.
+Um personagem não pode usar Aguentar e Esquiva contra o mesmo ataque no mesmo turno, mas pode alternar entre as duas reações em turnos diferentes dentro da mesma rodada. “Tanque” esse golpe, ou simplesmente não reagir, equivale a usar Aguentar ou apenas comparar o ataque à CA.
+Dano Agravado
+Sempre que uma Esquiva ou um Aguentar falhar, o ataque causa Dano Agravado:
++1 dado de dano — ou +2 dados de dano em caso de Falha Crítica (resultado 1 ou 2) na defesa
+Interceptação
+Reação disponível a todos os personagens. Quando um aliado a até 5 metros sofrer um ataque, o personagem pode gastar sua Reação para se tornar o alvo daquele ataque. Cabe ao Mestre decidir se a trajetória do ataque permite a interceptação. Interceptação interrompe o Close Quarters em andamento.
+Postura Preparada
+Ação Completa. O personagem declara: “Quando X acontecer, farei Y.” Enquanto estiver em postura:
+Não pode andar.
+Não pode utilizar Ações Completas.
+Pode utilizar Ações Bônus normalmente.
+Pode utilizar Reações normalmente.
+Pode cancelar a postura livremente.
+Benefício: -10 na CD da ação preparada. A ação ocorre imediatamente quando a condição declarada for atendida — em qualquer turno, inclusive fora do turno do personagem.
+Exemplo: “Quando ele entrar a 5 metros de mim, vou atacá-lo.” Se normalmente fosse necessário superar CA 30, passa a ser necessário superar CA 20.
+Close Quarters (Combate Aproximado)
+Representa trocas contínuas de golpes entre dois combatentes engajados. Deve ser declarado por um dos participantes ou, caso os personagens já estejam em combate corpo a corpo fechado, o Mestre pode avisar ou perguntar à mesa se o Close Quarters será utilizado.
+Enquanto ambos permanecerem em Close Quarters:
+Cada rolagem representa simultaneamente defesa e ataque.
+Quem superar a rolagem anterior defende o golpe recebido e imediatamente desfere outro.
+Quem perder sofre o dano, mas continua pressionando.
+Magias quebram temporariamente o Close Quarters, sendo resolvidas com a rolagem normal do sistema.
+Ambos continuam recuperando recursos normalmente durante a sequência.
+Air Break pode ocorrer normalmente durante o Close Quarters.
+O Close Quarters termina quando um dos combatentes recua, a distância é rompida, uma habilidade interrompe a sequência (incluindo Interceptação), ou um combatente fica incapacitado.
+Ataques Conjuntos
+CD = CA do alvo + 5 por participante adicional
+O grupo declara um participante como líder. O resultado final do ataque é a rolagem do líder somada à metade (arredondada para cima) da rolagem dos demais participantes. Todos os participantes causam dano individualmente. Críticos se acumulam.
+Ataques Localizados
+O atacante pode tentar atingir regiões específicas do corpo, recebendo uma CD adicional:
+Região
+CD Adicional
+Torso
++0
+Perna
++5
+Braço
++7
+Cabeça
++10
+Órgão específico
++15
+Pescoço, articulações, olhos ou pontos pequenos
++15
+Acertar não garante automaticamente incapacitação — o dano causado ainda precisa justificar o efeito narrativo.
+Exemplos
+Káká tenta cortar o tendão do joelho de um oponente (Perna, +5 na CD). Ele acerta e causa dano alto: o alvo sofre uma lesão grave na perna.
+Bull tenta perfurar o coração de um oponente (Órgão específico, +15 na CD). Ele acerta, mas causa pouco dano: a lâmina atravessa o tórax sem destruir o órgão.
+Conversão de Estilo de Ataque
+Toda arma ou habilidade possui um atributo principal, definido pelo jogador ao criar a técnica.
+Ataque baseado em DES convertido para FIS
++5 para acertar
++1 dado de dano
+A técnica passa a utilizar FIS para todas as interações relevantes (incluindo Efetividade de Atributo e Força/Velocidade Relativa).
+Ataque baseado em FIS convertido para DES
+-5 para acertar
+-1 dado de dano
+A técnica passa a utilizar DES para todas as interações relevantes.
+Acertos Críticos e Falhas
+Resultado
+Efeito
+1
+Falha Crítica — consequência grave, temporária ou permanente.
+2
+Falha Leve — consequência apenas narrativa.
+19
+Dobra os dados de dano.
+20
+Dobra os dados de dano e concede vantagem narrativa significativa (temporária ou permanente).
+Críticos e falhas críticas ocorrem em qualquer teste do sistema — não apenas em ataques — incluindo rolagens de iniciativa (ver Iniciativa, acima). Em testes de resistência, o defensor deve superar o resultado do atacante para ter sucesso.
+Air Break
+Ocorre sempre que o valor final de um ataque físico (após todos os modificadores) for múltiplo de 7. Isso inclui Ataques Localizados e habilidades que, embora não sejam puramente físicas em origem, atingem o alvo como dano físico (por exemplo, uma técnica descrita como “corte rápido como um relâmpago”, que é uma habilidade mas se resolve como um golpe físico).
+Efeito: dano multiplicado por 2,5 e recuperação de metade das barras atuais. Em Ataques Conjuntos, recupera-se metade do máximo das barras.
+Air Break não se acumula com Acerto Crítico: se o resultado final de um ataque for simultaneamente crítico (19 ou 20) e múltiplo de 7, aplica-se apenas o efeito do Crítico.
+Air Break pode ocorrer normalmente durante o Close Quarters.
+Parte V — Velocidade, Força e Efetividade
+Velocidade Relativa
+Compara os valores de DES entre atacante e defensor, sempre a partir da perspectiva de quem está em desvantagem (o personagem mais lento). Não altera iniciativa e não concede turnos extras. A CA Base e o bônus de FIS na CA permanecem intactos — apenas a parcela referente à DES (e a capacidade de reagir ao oponente mais rápido) é afetada.
+Diferença de DES
+Efeito (sobre o personagem mais lento)
+0 a 4
+Sem efeito.
+5 a 9
+O personagem mais lento perde 1/8 de sua CA.
+10 a 14
+O personagem mais lento perde 1/4 de sua CA.
+15 a 19
+As tentativas de acerto do personagem mais lento contra o mais rápido usam metade do dado.
+20 a 24
+A Esquiva do personagem mais lento contra o mais rápido é ineficiente (o Mestre pode negar o sucesso mesmo com rolagem favorável, ou aplicá-la com desvantagem).
+25+
+O personagem mais lento falha automaticamente ao tentar atacar o mais rápido.
+Força Relativa
+Compara os valores de FIS entre os personagens, representando diferença de massa, potência e estabilidade corporal.
+Diferença de FIS
+Efeito (a favor de quem tem mais FIS)
+0 a 4
+Sem efeito.
+5 a 9
+Vantagem em empurrões e agarrões.
+10 a 14
+Imunidade a empurrões comuns.
+15 a 19
+Imunidade a empurrões e vantagem contra agarrões.
+20+
+Não pode ser empurrado, arremessado ou agarrado por meios físicos normais.
+Exemplo: um personagem com FIS 35 contra um oponente com FIS 15 (diferença de 20) tenta ser derrubado por este último — a tentativa falha automaticamente, como tentar derrubar uma muralha.
+Efetividade de Atributo
+Alguns estilos de combate tornam-se naturalmente menos eficientes contra determinados oponentes. Isso não impede as ações — apenas reduz sua eficiência. O objetivo é construir cenas de combate onde a estratégia (mudar de abordagem, converter estilo de ataque, buscar um ângulo diferente) supera a simples comparação de números.
+Destreza contra Físico
+Diferença = FIS do alvo − DES do atacante.
+Diferença
+Efeito
+0 a 4
+Normal.
+5 a 9
+-1 dado de dano.
+10 a 14
+-2 dados de dano.
+15 a 19
+Metade dos dados de dano.
+20+
+Dano mínimo (1 por dado).
+Exemplo: Káká enfrenta um demônio colossal. Ele o acerta repetidamente, mas seus golpes causam pouco impacto — precisa mudar de abordagem.
+Físico contra Destreza
+Diferença = DES do alvo − FIS do atacante.
+Diferença
+Efeito
+0 a 4
+Normal.
+5 a 9
+CA do alvo +5 contra este atacante.
+10 a 14
+CA do alvo +10 contra este atacante.
+15 a 19
+O alvo pode contra-atacar sempre que se defender com um resultado 19 ou 20.
+20+
+Ataques diretos falham automaticamente — apenas previsão, armadilhas, ataques em área ou Postura Preparada conseguem atingir o alvo.
+Exemplo: um gigante golpeia um assassino com força absurda, mas o assassino se reposiciona antes do impacto pleno.
+Parte VI — Ferimentos
+Quando um único golpe causa dano significativo, ele gera um ferimento:
+Dano causado em um único golpe
+Ferimento
+25% do PV Máximo
+Ferimento Leve
+50% do PV Máximo
+Ferimento Grave
+75% do PV Máximo
+Ferimento Crítico
+Ferimento Leve
+Lesões dolorosas que atrapalham, mas não incapacitam. Exemplos: corte profundo, nariz quebrado, dedo quebrado, ombro deslocado, pequena perfuração muscular.
+Ferimento Grave
+Lesões que comprometem seriamente o combate. Exemplos: tendão rompido, braço inutilizado, perna gravemente lesionada, costelas destruídas, mão perfurada, hemorragia significativa.
+Ferimento Crítico
+Lesões potencialmente fatais ou permanentemente incapacitantes. Exemplos: órgão perfurado, perda de um olho, pulmão perfurado, coluna danificada, múltiplas fraturas.
+Crítico Aprimorado
+Ocorre quando um Ferimento Crítico é causado por um Acerto Crítico. Representa a soma de um Ferimento Grave e um Ferimento Crítico simultaneamente. Exemplos: membro arrancado, órgão destruído, coluna rompida, cegueira permanente, sequelas irreversíveis.
+Escalonamento de Ferimentos
+Ferimentos causados por Acertos Críticos sobem um estágio:
+Leve → Grave        Grave → Crítico        Crítico → Crítico Aprimorado
+Acúmulo e Cura
+Ferimentos podem se acumular livremente — diferentes ferimentos, inclusive em regiões diferentes, coexistem sem limite fixo (na prática, o personagem tende a morrer antes de acumular uma quantidade absurda).
+Um Ferimento Grave não substitui um Ferimento Leve na mesma região: ambos coexistem e são tratados separadamente.
+Toda cura restaura PV. Apenas curas de determinado nível ou tipo, conforme especificado na habilidade, também removem Ferimentos.
+Parte VII — Estados
+Estados representam condições especiais, positivas ou negativas, que afetam um personagem por um período. Estão listados em ordem alfabética.
+Anestesiado
+Descrição/Efeitos: O membro afetado recebe desvantagem em todas as ações relacionadas a ele (pernas dificultam movimentação, braços dificultam ataques, mãos dificultam manipulação).
+Como termina: Termina com o fim da duração definida pela fonte, ou por tratamento específico.
+Acumula? Não acumula no mesmo membro; membros diferentes são afetados de forma independente.
+Atordoado
+Descrição/Efeitos: O personagem não pode realizar ações por um número de turnos definido pela fonte.
+Como termina: Termina automaticamente ao fim da duração.
+Acumula? Não acumula duração; uma nova aplicação reinicia a contagem.
+Confusão
+Descrição/Efeitos: O personagem tem dificuldade em direcionar corretamente suas ações; o Mestre pode exigir uma rolagem para determinar se a ação sai como planejada.
+Como termina: Termina ao fim da duração ou por um teste de resistência bem-sucedido, conforme a fonte.
+Acumula? Não acumula.
+Congelado
+Descrição/Efeitos: O corpo do personagem é total ou parcialmente imobilizado por gelo, reduzindo ou impedindo movimento e certas ações.
+Como termina: Termina com dano suficiente, exposição a calor, ou fim da duração.
+Acumula? Não acumula; reaplicações podem estender a duração conforme a fonte.
+Envenenado
+Descrição/Efeitos: Ao final do turno da vítima, ela sofre Xd6 de dano.
+Como termina: Termina ao fim da duração definida pela fonte, ou por tratamento (antídoto, cura específica).
+Acumula? Acumulações aumentam apenas a duração, nunca os dados de dano.
+Euforia
+Descrição/Efeitos: Ocorre após dois Air Breaks no mesmo combate: vantagem em todas as ações.
+Como termina: Termina ao sofrer dano significativo (sugestão: 10% ou mais do PV máximo em um único golpe).
+Acumula? Não acumula — é um estado binário.
+Exaustão
+Descrição/Efeitos: Penalidades em testes físicos e redução de deslocamento, geralmente resultante de Overuse ou esforço extremo prolongado.
+Como termina: Termina com Descanso Longo ou tratamento específico.
+Acumula? Pode acumular em graus crescentes de severidade.
+Overheat
+Descrição/Efeitos: Ocorre quando uma barra de recurso chega a 0. O recurso associado torna-se inutilizável.
+Como termina: Termina ao recuperar pelo menos metade da barra, ou por Descanso Longo.
+Acumula? Não se aplica (é um estado por recurso, não cumulativo).
+Overheat Forçado
+Descrição/Efeitos: Algumas habilidades extremamente poderosas podem causar Overheat mesmo sem zerar o recurso, representando o usuário ultrapassando limites naturais. Deve sempre ser um efeito conhecido previamente — escrito na habilidade ou avisado pelo Mestre — nunca um efeito surpresa. Também pode ser usado como Voto Vinculativo.
+Como termina: Dura 1 turno, 2 turnos, ou a cena inteira, conforme definido pela fonte.
+Acumula? Não acumula.
+Overuse
+Descrição/Efeitos: Resulta do uso contínuo de buffs ou aprimoramentos corporais por várias rodadas seguidas. O buff permanece ativo até ser desativado.
+Como termina: Ao terminar, causa Exaustão.
+Acumula? Não acumula; o efeito é sequencial (Overuse leva a Exaustão).
+Paralisado
+Descrição/Efeitos: O personagem está impossibilitado de se mover ou agir, mas permanece consciente. Reações também costumam ser bloqueadas.
+Como termina: Termina ao fim da duração, ou ao ser atingido, conforme a fonte.
+Acumula? Não acumula.
+Pico
+Descrição/Efeitos: Estado raro, atingido em momentos dramáticos alinhados aos ideais do personagem ou de seu espírito: dano ×2, Air Break ×5, regeneração constante de recursos, redução de efeitos negativos.
+Como termina: Termina com o fim da condição narrativa que o originou.
+Acumula? Não acumula.
+Regeneração
+Descrição/Efeitos: O personagem recupera PV automaticamente a cada turno, em uma quantidade definida pela fonte.
+Como termina: Termina ao fim da duração, ou é suprimida por certos tipos de dano (fogo, ácido etc.), conforme a habilidade.
+Acumula? Múltiplas fontes podem somar o valor de cura recebido por turno.
+Sangramento
+Descrição/Efeitos: Ao final do turno do agressor, a vítima sofre Xd4 de dano.
+Como termina: Termina ao fim da duração definida pela fonte, ou por tratamento (estancar o sangramento).
+Acumula? Acumulações aumentam apenas os dados de dano, nunca a duração.
+Parte VIII — Overheat e Gerenciamento de Recursos
+Overheat
+Quando uma barra chega a 0, o recurso torna-se inutilizável até que o personagem recupere pelo menos metade da barra ou realize um Descanso Longo.
+Overheat Forçado
+Algumas habilidades extremamente poderosas podem causar Overheat mesmo sem zerar recursos, representando o usuário ultrapassando seus limites naturais. Este efeito nunca é surpresa: deve estar escrito na descrição da habilidade ou ser avisado previamente pelo Mestre. Duração comum: 1 turno, 2 turnos, ou a cena inteira. Também pode ser utilizado como custo de um Voto Vinculativo.
+Parte IX — Votos Vinculativos
+Votos Vinculativos permitem alterar custos, alvos, duração, poder e restrições de uma habilidade através de um compromisso assumido pelo personagem. Quanto maior o sacrifício, maior o benefício. Não existe limite para a quantidade de Votos Vinculativos que um personagem pode possuir simultaneamente, e qualquer técnica, de qualquer categoria, pode recebê-los.
+Momentâneo
+Afeta apenas uma única ativação da habilidade.
+Permanente
+Divide-se em dois subgrupos:
+Restritivo (Inibidor)
+A habilidade só funciona se a condição estabelecida for cumprida.
+Punitivo (Subjulgado)
+A habilidade funciona sempre, mas pune o usuário caso a condição estabelecida seja quebrada. A gravidade da punição pode variar.
+Parte X — Cenário e Objetos
+Dano em Área
+Área Instantânea
+Surge diretamente na área do alvo. Exemplos: espinhos brotando do chão, terremotos, pilares surgindo do solo. Cobertura não protege contra esse tipo de efeito, e ele não pode ser esquivado.
+Área Direcionada
+Possui origem definida e trajetória. Exemplos: cone de fogo, jato de água, raio. Coberturas podem bloquear o efeito.
+Objetos e Estruturas
+Objetos não possuem Pontos de Vida. Eles possuem apenas Classe de Armadura Estrutural (CAE).
+Dano recebido
+Efeito
+Dano menor que 50% da CAE
+Nenhum dano estrutural relevante.
+Dano entre 50% e 99% da CAE
+A estrutura sofre dano: sua CAE é reduzida pelo valor obtido no ataque. O Mestre descreve os danos narrativamente.
+Dano igual ou superior à CAE
+A estrutura entra em colapso (portas arrombadas, paredes destruídas, pilares quebrados).
+Exemplo: um objeto com CAE 20 recebe um ataque de 12. Sua nova CAE passa a ser 8. Objetos não recuperam CAE naturalmente.
+Parte XI — Morte e Consequências
+Salva-Guarda
+Ao atingir 0 PV, o personagem fica inconsciente. No início de cada turno, ele realiza uma Salva-Guarda — uma rolagem sempre natural, sem modificadores:
+Resultado
+Efeito
+1–2
++2 Pontos de Morte
+3–9
++1 Ponto de Morte
+10–18
++1 Ponto de Reviver
+19–20
++2 Pontos de Reviver
+Ao atingir 3 Pontos de Morte, o personagem morre. Ao atingir 3 Pontos de Reviver, ele desperta com 1 PV.
+Enquanto inconsciente: receber cura faz o personagem despertar imediatamente; Inspiração concede vantagem na próxima Salva-Guarda; sofrer dano gera automaticamente 1 Ponto de Morte.
+Morte
+Este mecanismo de retorno aplica-se apenas a personagens de jogadores. Quando um personagem de jogador morre, sua alma não segue para o pós-vida: como pertence a outra realidade, ela reaparece em um local aleatório. Para restaurar o equilíbrio da realidade, um NPC morre em seu lugar.
+O NPC substituto é escolhido pelo Mestre, que deve selecionar aquele que estiver mais emocionalmente conectado ao grupo no momento da morte — não um NPC fixo definido de antemão. Essa conexão pode mudar ao longo da campanha conforme os vínculos dos personagens evoluem.
+O personagem retorna à vida com 1 PV.
+Exceção: caso a própria alma do personagem tenha sido destruída (Expurgo), ele não retorna.
+Toda morte deixa uma Cicatriz Permanente, determinada pelo Mestre, representando uma alteração irreversível causada pela ruptura da realidade — perda de uma lembrança importante, marcas físicas permanentes, pesadelos constantes, alteração de personalidade, espíritos perseguidores, mudanças sobrenaturais no corpo. Cicatrizes Permanentes se acumulam para sempre: o personagem jamais retorna exatamente como era antes.
+Parte XII — Progressão e Poder
+Não existe nível máximo. Um personagem continua ganhando pontos de atributo, recursos e progressão indefinidamente.
+Maestria (a partir do nível 25)
+Após uma questline específica, o personagem pode conquistar domínio absoluto sobre uma área escolhida (uma Inata, uma Arte Divina, uma Magia, um atributo etc.), obtendo bônus fixos, redução de custo e grande liberdade de improviso sobre aquela área.
+Cada personagem pode possuir apenas uma Maestria. A escolha da área dominada é definitiva e deve refletir o maior foco de desenvolvimento do personagem ao longo da campanha.
+Escala de Poder
+Rampage é pensado para campanhas longas (a duração exata é irrelevante para o design do sistema — é comum girar em torno de 80 a 160 sessões). O teto de poder é definido pelo Mestre, mas o sistema comporta, em princípio, personagens que alcancem um nível de poder comparável a figuras como Gojo, Sukuna ou Madara.
+Parte XIII — Tipos de Oponentes
+Humanos
+Magos — utilizam Vigor, lutam em grupo, alta versatilidade.
+Hospedeiros — utilizam Éter, alto dano individual, mais brutais.
+Demônios
+Demônios Bestiais — lutam em grupo, ataques dispersos e caóticos.
+Entidades — inteligentes, evoluídas, podem parecer humanas. Nem todos conseguem vê-las, mas quase todos conseguem senti-las.
+Parte XIV — O Mestre
+Arbitragem
+O Mestre tem liberdade para ajustar CDs, custos e consequências narrativas, visando diversão e coerência — mas nunca reescreve as regras estabelecidas no meio de um conflito. Se uma estratégia funciona de acordo com as regras, ela também funciona dentro da narrativa.
+Balanceamento e Desafio
+Quando um jogador cria uma estratégia extremamente inteligente que “quebra” um encontro, a filosofia oficial de Rampage é clara: se as regras permitiram, aconteceu. Cabe ao Mestre construir desafios melhor projetados nos próximos encontros, nunca enfraquecer arbitrariamente uma estratégia já validada pelas regras durante a cena.
+Identidade do Sistema
+Rampage é uma mistura equilibrada de três ideias: um RPG cinematográfico com foco em estratégia, um RPG onde criatividade vale mais que números, e um RPG onde as regras criam cenas cinematográficas naturalmente. Nenhuma dessas três descrições sozinha define o sistema — juntas, sim.
+Apêndice A — Tabela de Referência Rápida
+Fórmulas Essenciais
+Elemento
+Fórmula
+Ataque
+1d20 + atributo + bônus
+Teste geral
+1d20 + atributo relevante
+Iniciativa
+1d20 (sem modificador)
+CA
+(1,5 × Nível) + FIS/4 + DES/4, arred. para baixo
+PV
+3d12 + 1d12 por ponto de FIS
+Esquiva
+1d20 + DES vs. resultado do ataque (gasta Reação)
+Aguentar
+1d20 + FIS vs. resultado do ataque (não gasta Reação)
+Ataques Conjuntos (CD)
+CA do alvo + 5 por participante adicional
+Air Break
+Resultado final do ataque físico múltiplo de 7 → dano ×2,5
+Gatilhos Numéricos
+Gatilho
+Condição
+Crítico / Falha Crítica
+1, 2, 19, 20
+Air Break
+Múltiplo de 7
+Ferimento Leve
+25% do PV Máximo em um golpe
+Ferimento Grave
+50% do PV Máximo em um golpe
+Ferimento Crítico
+75% do PV Máximo em um golpe
+Overheat
+Barra chega a 0
+Maestria
+Nível 25+
+Movimento e Alcance
+Alcance
+Distância
+Ataques desarmados (punhos, chutes)
+1 metro
+Armas corpo a corpo
+2 metros
+Movimento por Ação Bônus
+4 metros
+Movimento por Ação Completa
+5 metros
+Movimento máximo por rodada
+9 metros
+Ordem de Resolução do Dano
+Ataque → Crítico → Air Break → Modificador → Resistência → Ferimento → Estado
+Resistências
+Condição
+Efeito
+Resistente
+Metade do dano recebido
+Vulnerável
+1,5× de dano (soma-se metade da rolagem de dano)
+Frágil
+Dobro do dano recebido
+Imune
+0 de dano
+Apêndice B — Exemplos de Combate
+Os exemplos a seguir ilustram, do início ao fim, como as regras se combinam durante uma cena. Os nomes e números são meramente ilustrativos.
+Exemplo 1 — Combate Simples
+Bull (nível 8, FIS 22, DES 12) enfrenta um lobisomem solitário. Na iniciativa, ambos rolam 1d20: Bull tira 14, o lobisomem tira 9 — Bull age primeiro.
+Bull ataca com seu machado (baseado em FIS): 1d20 + FIS. Ele rola 17, totalizando 39 contra a CA 28 do lobisomem — acerto. O resultado final (39) não é múltiplo de 7 nem crítico, então o dano é resolvido normalmente: a arma causa 4d10 + FIS, totalizando 38 de dano.
+O lobisomem está com 60 PV máximo; 38 de dano equivale a mais de 50% em um único golpe — gera um Ferimento Grave (o Mestre narra um braço quebrado, por exemplo). O lobisomem reage com Aguentar: 1d20 + FIS contra o resultado do ataque de Bull. Como a Reação já havia sido descrita antes da rolagem de dano, ela é resolvida antes da aplicação — o Mestre decide, neste caso, que o lobisomem optou por não reagir (defesa passiva), sofrendo o dano integral.
+No turno seguinte, o lobisomem ataca Bull e rola um resultado final de 21 — múltiplo de 7. Ocorre Air Break: o dano é multiplicado por 2,5, e o lobisomem recupera metade de suas barras atuais.
+Exemplo 2 — Ataque Conjunto
+Káká, Bull e um terceiro aliado atacam juntos um golem de pedra (CA 30). Como há dois participantes adicionais além do líder, a CD do ataque conjunto passa a ser 30 + 5 + 5 = 40.
+Káká é declarado líder e rola 1d20 + DES, obtendo 28. Bull rola 20 e o terceiro aliado rola 16; a soma desses dois resultados é 36, e sua metade (arredondada para cima) é 18. O resultado final do ataque conjunto é 28 + 18 = 46, superando a CD 40 — sucesso.
+Cada participante causa seu dano individualmente, com suas próprias armas ou habilidades. Se qualquer um deles obtiver um resultado crítico em sua rolagem individual de dano, os críticos se acumulam sobre o efeito total.
+Exemplo 3 — Close Quarters e Interceptação
+Káká e um assassino demoníaco entram em confronto direto; Káká declara Close Quarters. A partir daí, cada rolagem representa simultaneamente ataque e defesa: Káká rola 24, o assassino rola 19 — Káká supera a rolagem anterior, então se defende do golpe recebido e desfere outro imediatamente.
+No meio da sequência, o assassino desvia sua atenção para Bull, que está próximo. Káká gasta sua Reação para Interceptar o ataque, tornando-se o alvo novamente — isso interrompe o Close Quarters em andamento, já que a interceptação rompe a sequência original.
+Exemplo 4 — Overheat e Voto Vinculativo
+Um hospedeiro está com sua barra de Éter zerada — ele está em Overheat e não pode usar habilidades de Arte Divina até recuperar metade da barra ou realizar um Descanso Longo.
+Para virar a maré do combate, ele assume um Voto Vinculativo Momentâneo: “Se eu não conseguir derrotar meu oponente nos próximos dois turnos, entrarei em Overheat Forçado por uma cena inteira.” Em troca, sua próxima habilidade recebe poder e alcance ampliados. O Mestre registra a condição e cobra o cumprimento dela normalmente ao final do prazo estabelecido.
+Exemplo 5 — Ataque Localizado com Air Break
+Bull mira um ataque na cabeça de um oponente (Ataques Localizados, +10 na CD). Ele rola 1d20 + FIS e obtém um resultado final de 28 — múltiplo de 7. Isso é simultaneamente um Ataque Localizado bem-sucedido e um Air Break: o dano é multiplicado por 2,5, e Bull recupera metade de suas barras atuais, além do efeito de Ferimento causado pela região atingida.
+Apêndice C — Glossário
+Lista de termos técnicos do sistema, em ordem alfabética, com definição breve para consulta rápida durante a mesa.
+Aguentar — Reação alternativa à Esquiva que não gasta Reação. Reduz o dano pela metade em caso de sucesso; falha causa Dano Agravado.
+Air Break — Efeito que ocorre quando o valor final de um ataque físico é múltiplo de 7: dano ×2,5 e recuperação de metade das barras atuais.
+Ataque Conjunto — Ataque realizado por vários personagens simultaneamente contra um único alvo, combinando as rolagens de um líder e de seus apoiadores.
+Ataque Localizado — Tentativa de atingir uma região específica do corpo, recebendo uma CD adicional conforme a região.
+Cicatriz Permanente — Alteração irreversível causada pela morte de um personagem de jogador, definida pelo Mestre.
+Close Quarters — Sequência contínua de trocas de golpes entre dois combatentes engajados, onde cada rolagem representa ataque e defesa simultaneamente.
+Conversão de Estilo de Ataque — Mudança do atributo principal de uma técnica (de DES para FIS, ou vice-versa), alterando bônus de acerto e dano.
+Dano Agravado — Dano adicional (+1 dado, ou +2 em caso de Falha Crítica) causado quando uma defesa (Esquiva ou Aguentar) falha.
+Descanso Curto — Recuperação de 50% das barras de recurso atuais.
+Descanso Longo — Restauração completa de todas as barras e remoção de estados negativos (salvo exceções).
+Efetividade de Atributo — Regra que reduz a eficiência de ataques baseados em DES contra alvos com FIS muito superior, e vice-versa.
+Esquiva — Reação que gasta uma Reação e evita completamente um ataque percebido em caso de sucesso.
+Expurgo — Destruição da própria alma de um personagem, impedindo seu retorno após a morte.
+Ferimento — Consequência física causada por um único golpe que atinja 25%, 50% ou 75% do PV máximo do alvo (Leve, Grave ou Crítico).
+Força Relativa — Comparação entre os valores de FIS de dois personagens, determinando vantagens em empurrões e agarrões.
+Interceptação — Reação universal que permite a um personagem se tornar o alvo de um ataque destinado a um aliado próximo.
+Inspiração — Recurso narrativo que concede vantagem em uma ação; três Inspirações podem virar uma Certeza.
+Maestria — Domínio absoluto sobre uma área escolhida, disponível a partir do nível 25. Cada personagem possui apenas uma.
+Overheat — Estado que torna um recurso inutilizável após sua barra chegar a 0.
+Overheat Forçado — Overheat causado deliberadamente por uma habilidade poderosa, sempre anunciado previamente.
+Postura Preparada — Ação Completa que declara uma condição e uma reação futura, reduzindo em -10 a CD da ação preparada.
+Salva-Guarda — Rolagem realizada por um personagem inconsciente a 0 PV para determinar se ele morre ou desperta.
+Velocidade Relativa — Comparação entre os valores de DES de dois personagens, reduzindo a CA e a eficácia de ataques e esquivas do mais lento.
+Voto Vinculativo — Compromisso assumido por um personagem que altera custos, alvos, duração ou poder de uma habilidade em troca de uma restrição.
+Apêndice D — Estrutura da Ficha de Personagem
+Esta seção descreve os campos recomendados para a ficha de personagem, já adaptados à versão atual do sistema (substituindo os antigos FOR/DES/SAB/INT/CAR/CON pelos atributos vigentes: FIS, DES, MEN e CAR).
+Informações do Personagem
+Nome, nível, imagem
+Antecedente (background) e classe/arquétipo
+Campo dominante de magia
+Idade, altura, peso, raça, alinhamento (campos livres, uso narrativo)
+Atributos
+FIS, DES, MEN, CAR
+Inata, Arte Divina, Mágica
+Barras de Recurso
+PV atual / PV máximo
+PE atual / PE máximo
+Éter atual / Éter máximo
+Vigor atual / Vigor máximo
+O campo “Sanidade”, presente em versões antigas da ficha, não faz parte das regras atuais e deve ser removido ou tratado apenas como recurso narrativo opcional definido pelo Mestre.
+Classe de Armadura
+CA calculada (Base + FIS/4 + DES/4)
+Modificador de CA (bônus de armadura, cobertura ou efeitos temporários)
+Habilidades
+Lista de técnicas conhecidas, cada uma com Custo, Tipo, Alcance, Tempo de conjuração, Duração e Manutenção — conforme a estrutura mínima definida na Parte II. Votos Vinculativos ativos devem ser anotados junto à habilidade correspondente.
+Equipamento e Inventário
+Armadura (por conjunto ou por peça: cabeça, tórax, mãos, pernas, pés, acessório)
+Armas equipadas
+Itens carregados / inventário geral
+Moedas e recursos materiais (uso narrativo)
+Estados e Foco
+Estados ativos (ver Parte VII)
+Pontos de Foco / Inspiração acumulada (máximo 3)
+Notas, Lore e Traços
+Campos livres de texto para histórico, anotações de sessão e traços de personalidade — sem efeito mecânico direto, mas úteis para orientar decisões narrativas do Mestre (como a escolha do NPC mais emocionalmente conectado ao personagem, relevante para a regra de Morte).
