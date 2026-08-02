@@ -3,6 +3,15 @@ import Tabs from "./Tabs";
 import AbilityCard from "./AbilityCard";
 import Inventory from "./Inventory";
 import { blobToCompressedDataUrl } from "../utils/imageCompress";
+import {
+  STAT_LABELS,
+  ALL_STATS,
+  computeCA,
+  canSpendResource,
+  syncOverheatFlags,
+  clearOverheatIfRecovered,
+  normalizeEffect,
+} from "../utils/rampageRules";
 import "./CharacterSheet.css";
 
 const MAX_GALLERY_IMAGES = 24;
@@ -29,6 +38,7 @@ const MAGIC_FIELDS = [
   { value: "invocacao", label: "Invocação" },
   { value: "conjuracao", label: "Conjuração" },
   { value: "transmutacao", label: "Transmutação" },
+  { value: "abjuracao", label: "Abjuração" },
 ];
 
 export default function CharacterSheet({ 
@@ -59,7 +69,16 @@ export default function CharacterSheet({
     field: ""
   });
   const [newTrait, setNewTrait] = useState({ name: "", effect: "" });
-  const [newEffect, setNewEffect] = useState({ name: "", description: "", rounds: 0, damage: 0, effect: "", drainType: "", drainAmount: 0 });
+  const [newEffect, setNewEffect] = useState({
+    name: "",
+    description: "",
+    rounds: 0,
+    damage: 0,
+    effect: "",
+    drainType: "",
+    drainAmount: 0,
+    tickMode: "turnEnd",
+  });
   const [showAddModeForm, setShowAddModeForm] = useState(false);
   const [newModeName, setNewModeName] = useState("");
   const [newModeModifiers, setNewModeModifiers] = useState({});
@@ -227,6 +246,12 @@ export default function CharacterSheet({
       return;
     }
 
+    const spendKey = resourceBar === "inata" ? "pe" : resourceBar;
+    if (!canSpendResource(sheet, spendKey)) {
+      alert("Overheat: este recurso está inutilizável até recuperar pelo menos metade do máximo ou fazer Descanso Longo.");
+      return;
+    }
+
     const baseCost = typeof ability.cost === "number" ? ability.cost : Number(ability.cost) || 0;
     if (baseCost <= 0) {
       alert("Esta habilidade não tem custo definido.");
@@ -236,13 +261,22 @@ export default function CharacterSheet({
     const cost = getEffectiveCost(ability);
     const currentResource = sheet.bars?.[resourceBar] || 0;
     if (currentResource < cost) {
-      alert(`Recurso insuficiente! Você tem ${currentResource} de ${resourceBar === "inata" ? "Inata" : resourceBar === "vigor" ? "Vigor" : "Ether"}, mas precisa de ${cost}.`);
+      alert(`Recurso insuficiente! Você tem ${currentResource} de ${resourceBar === "inata" ? "PE" : resourceBar === "vigor" ? "Vigor" : "Éter"}, mas precisa de ${cost}.`);
       return;
     }
 
-    const s = JSON.parse(JSON.stringify(sheet));
+    let s = JSON.parse(JSON.stringify(sheet));
     if (!s.bars) s.bars = {};
     s.bars[resourceBar] = Math.max(0, currentResource - cost);
+    s = syncOverheatFlags(s);
+    if (ability.soundUrl) {
+      try {
+        const audio = new Audio(ability.soundUrl);
+        audio.play().catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    }
     onUpdateSheet(s);
     setTimeout(() => onSave(), 0);
   };
@@ -341,16 +375,20 @@ export default function CharacterSheet({
     }
     
     const s = JSON.parse(JSON.stringify(sheet));
-    s.effects = [...(s.effects || []), { 
-      id: Date.now(), 
-      name: newEffect.name.trim(), 
-      description: newEffect.description || "",
-      rounds: Number(newEffect.rounds) || 0,
-      damage: Number(newEffect.damage) || 0,
-      effect: newEffect.effect || "",
-      drainType: newEffect.drainType || "",
-      drainAmount: Number(newEffect.drainAmount) || 0
-    }];
+    s.effects = [
+      ...(s.effects || []),
+      normalizeEffect({
+        id: Date.now(),
+        name: newEffect.name.trim(),
+        description: newEffect.description || "",
+        rounds: Number(newEffect.rounds) || 0,
+        damage: Number(newEffect.damage) || 0,
+        effect: newEffect.effect || "",
+        drainType: newEffect.drainType || "",
+        drainAmount: Number(newEffect.drainAmount) || 0,
+        tickMode: newEffect.tickMode || "turnEnd",
+      }),
+    ];
     onUpdateSheet(s);
     
     // Reset form
@@ -657,7 +695,7 @@ export default function CharacterSheet({
               {[
                 { 
                   key: "bars.inata", 
-                  label: "Inata", 
+                  label: "PE", 
                   colorClass: "bar-blue", 
                   max: sheet.bars?.maxInata || sheet.level * 200,
                   maxKey: "maxInata",
@@ -789,16 +827,17 @@ export default function CharacterSheet({
             <div className="panel stats-panel">
               <h3>Atributos</h3>
               <div className="stats-grid">
-                {Object.entries(sheet.stats || {}).map(([k, v]) => {
+                {ALL_STATS.map((k) => {
+                  const v = sheet.stats?.[k] ?? 0;
                   const baseVal = Number(v) || 0;
                   const effVal = Number(effectiveStats[k]) ?? baseVal;
                   const modDelta = effVal - baseVal;
                   return (
                     <div key={k} className="stat-cell">
-                      <div className="stat-key">{k.toUpperCase()}</div>
+                      <div className="stat-key">{STAT_LABELS[k] || k.toUpperCase()}</div>
                       <input
                         className="stat-input"
-                        value={v || ""}
+                        value={v === 0 || v ? v : ""}
                         onChange={(e) => {
                           const s = JSON.parse(JSON.stringify(sheet));
                           if (!s.stats) s.stats = {};
@@ -816,15 +855,18 @@ export default function CharacterSheet({
                   );
                 })}
               </div>
+              {(() => {
+                const fis = Number(effectiveStats.fis ?? sheet.stats?.fis) || 0;
+                const des = Number(effectiveStats.des ?? sheet.stats?.des) || 0;
+                const ca = computeCA(sheet.level, fis, des, sheet.caArmorMod);
+                const oh = sheet.overheat || {};
+                return (
               <div className="ca-display" style={{ marginTop: "20px", padding: "12px", background: "rgba(107, 70, 193, 0.15)", borderRadius: "8px", border: "1px solid rgba(107, 70, 193, 0.3)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                   <div style={{ fontWeight: "600", fontSize: "14px" }}>Classe de Armadura (CA)</div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ fontSize: "24px", fontWeight: "800", color: "var(--accent-indigo)" }}>
-                      {10 + Math.max(
-                        Math.floor((sheet.stats?.con || 0) / 2),
-                        Math.floor((sheet.stats?.des || 0) / 2)
-                      ) + (Number(sheet.caArmorMod) || 0)}
+                      {ca}
                     </div>
                     <label className="muted" style={{ fontSize: "12px" }}>Mod. armadura</label>
                     <input
@@ -843,10 +885,17 @@ export default function CharacterSheet({
                   </div>
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
-                  Base 10 + max(CON/2: {Math.floor((sheet.stats?.con || 0) / 2)}, DES/2: {Math.floor((sheet.stats?.des || 0) / 2)})
+                  floor(1,5×nível + FIS/4 + DES/4) = floor(1,5×{Number(sheet.level) || 0} + {fis}/4 + {des}/4)
                   {(Number(sheet.caArmorMod) || 0) !== 0 && ` + armadura ${sheet.caArmorMod >= 0 ? "+" : ""}${sheet.caArmorMod}`}
                 </div>
+                {(oh.pe || oh.ether || oh.vigor) && (
+                  <div style={{ fontSize: "12px", color: "#f87171", marginTop: "8px" }}>
+                    Overheat ativo: {[oh.pe && "PE", oh.ether && "Éter", oh.vigor && "Vigor"].filter(Boolean).join(", ")}
+                  </div>
+                )}
               </div>
+                );
+              })()}
 
               <h3 className="mt">Modos</h3>
               <p className="muted small" style={{ marginBottom: "8px" }}>Ative modos para aplicar bônus/penalidade aos atributos (só exibição e rolos).</p>
@@ -891,9 +940,9 @@ export default function CharacterSheet({
                   />
                   <div className="muted small" style={{ marginBottom: "6px" }}>Modificadores (deixe 0 ou vazio para não alterar)</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
-                    {Object.keys(sheet.stats || {}).map((statKey) => (
+                    {ALL_STATS.map((statKey) => (
                       <div key={statKey} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                        <label style={{ fontSize: "12px", minWidth: "28px" }}>{statKey.toUpperCase()}</label>
+                        <label style={{ fontSize: "12px", minWidth: "28px" }}>{STAT_LABELS[statKey] || statKey}</label>
                         <input
                           type="number"
                           className="input-number"
@@ -1265,11 +1314,21 @@ export default function CharacterSheet({
               </div>
               <div className="form-row">
                 <select
+                  value={newEffect.tickMode || "turnEnd"}
+                  onChange={(e) => setNewEffect({ ...newEffect, tickMode: e.target.value })}
+                  className="select"
+                  title="Quando o efeito tica na sessão"
+                >
+                  <option value="turnEnd">Tick: fim do turno</option>
+                  <option value="turnStart">Tick: início do turno</option>
+                  <option value="round">Tick: fim da rodada</option>
+                </select>
+                <select
                   value={newEffect.drainType || ""}
                   onChange={(e) => setNewEffect({ ...newEffect, drainType: e.target.value })}
                   className="select"
                 >
-                  <option value="">Dreno por rodada: Nenhum</option>
+                  <option value="">Dreno por tick: Nenhum</option>
                   <option value="hp">HP</option>
                   <option value="ether">Ether</option>
                   <option value="vigor">Vigor</option>

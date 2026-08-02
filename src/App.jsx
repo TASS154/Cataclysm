@@ -19,6 +19,7 @@ import CharacterSheet from "./components/CharacterSheet";
 import MapView from "./components/MapView";
 import JoinPage from "./pages/JoinPage";
 import RulesPage from "./pages/RulesPage";
+import LorePage from "./pages/LorePage";
 import NotesPage from "./pages/NotesPage";
 import GmLibraryPage from "./pages/GmLibraryPage";
 import ImportExportModal from "./components/ImportExportModal";
@@ -29,25 +30,28 @@ import { hasUnreadChangelog } from "./data/changelogData";
 import { UserProvider } from "./context/UserContext";
 import { createSession } from "./services/sessionService";
 import { isMestreAccount } from "./utils/mestreAccount";
+import {
+  EMPTY_STATS,
+  migrateStats,
+  applyShortRestBars,
+  getBarMaxes as rampageGetBarMaxes,
+  clearOverheat,
+  clearOverheatIfRecovered,
+  syncOverheatFlags,
+  normalizeOverheat,
+  applyLevelUpHp,
+  normalizeEffect,
+} from "./utils/rampageRules";
 import "./RPGPlayerEditor.css";
 
 const emptySheet = {
   name: "New Character",
   isMain: true,
-  level: 1,
+  level: 3,
   image: "",
-  bars: { inata: 10, ether: 10, vigor: 10, hp: 20, maxHp: 20, sanity: 100, maxSanity: 100 },
-  stats: {
-    for: 10,
-    des: 10,
-    sab: 10,
-    int: 10,
-    car: 10,
-    con: 10,
-    arteDivina: 0,
-    inata: 0,
-    magica: 0,
-  },
+  bars: { inata: 600, ether: 300, vigor: 150, hp: 20, maxHp: 20, sanity: 100, maxSanity: 100 },
+  stats: { ...EMPTY_STATS },
+  overheat: { pe: false, ether: false, vigor: false },
   characterInfo: {
     class: "",
     race: "",
@@ -107,6 +111,7 @@ function getEffectiveStats(sheet) {
 }
 
 function buildUpdatedSheet(found, emptySheet) {
+  const migratedStats = migrateStats(found?.stats || {});
   return {
     ...emptySheet,
     ...found,
@@ -116,7 +121,8 @@ function buildUpdatedSheet(found, emptySheet) {
       sanity: found.bars?.sanity !== undefined ? found.bars.sanity : emptySheet.bars.sanity,
       maxSanity: 100
     },
-    stats: { ...emptySheet.stats, ...found.stats },
+    stats: migratedStats,
+    overheat: normalizeOverheat(found),
     characterInfo: found.characterInfo || emptySheet.characterInfo,
     coins: found.coins || { gold: 0, silver: 0 },
     inventory: found.inventory || [],
@@ -147,25 +153,12 @@ function buildUpdatedSheet(found, emptySheet) {
     focusType: found.focusType === "certainty" ? "certainty" : "inspiration",
     focusPoints: Number(found.focusPoints) || 0,
     pendingRollPower: found.pendingRollPower || null,
-    effects: (found.effects || []).map(effect => ({
-      ...effect,
-      rounds: effect.rounds !== undefined ? effect.rounds : 0,
-      damage: effect.damage !== undefined ? effect.damage : 0,
-      effect: effect.effect || "",
-      drainType: effect.drainType || "",
-      drainAmount: effect.drainAmount !== undefined ? effect.drainAmount : 0
-    })),
+    effects: (found.effects || []).map((effect) => normalizeEffect(effect)),
   };
 }
 
 function getBarMaxes(sheet) {
-  const level = Number(sheet.level) || 1;
-  return {
-    hp: Number(sheet?.bars?.maxHp) || Number(sheet?.bars?.hp) || 0,
-    inata: Number(sheet?.bars?.maxInata) || level * 200,
-    ether: Number(sheet?.bars?.maxEther) || level * 100,
-    vigor: Number(sheet?.bars?.maxVigor) || level * 50,
-  };
+  return rampageGetBarMaxes(sheet);
 }
 
 function isCharacterHealthyForLongRest(sheet) {
@@ -181,20 +174,7 @@ function isCharacterHealthyForLongRest(sheet) {
 }
 
 function applyShortRest(sheet) {
-  const s = JSON.parse(JSON.stringify(sheet));
-  if (!s.bars) s.bars = {};
-  const maxes = getBarMaxes(s);
-  const current = {
-    hp: Number(s.bars.hp) || 0,
-    inata: Number(s.bars.inata) || 0,
-    ether: Number(s.bars.ether) || 0,
-    vigor: Number(s.bars.vigor) || 0,
-  };
-  s.bars.hp = Math.min(maxes.hp, current.hp + Math.ceil(maxes.hp / 2));
-  s.bars.inata = Math.min(maxes.inata, current.inata + Math.ceil(maxes.inata / 2));
-  s.bars.ether = Math.min(maxes.ether, current.ether + Math.ceil(maxes.ether / 2));
-  s.bars.vigor = Math.min(maxes.vigor, current.vigor + Math.ceil(maxes.vigor / 2));
-  return s;
+  return clearOverheatIfRecovered(applyShortRestBars(sheet));
 }
 
 function applyLongRest(sheet) {
@@ -209,7 +189,7 @@ function applyLongRest(sheet) {
     s.bars.ether = maxes.ether;
     s.bars.vigor = maxes.vigor;
     s.effects = [];
-    return s;
+    return clearOverheat(s);
   }
 
   if (s.focusType === "certainty" && Number(s.focusPoints) > 0) {
@@ -326,15 +306,15 @@ function EditorLayout({
                     >
                       Criar sessão rápida
                     </button>
-                    <button
-                      className="btn-outline fullwidth"
-                      onClick={() => navigate("/biblioteca")}
-                      title="Imagens e sons para usar nas sessões"
-                    >
-                      📚 Biblioteca do Mestre
-                    </button>
                   </>
                 )}
+                <button
+                  className="btn-outline fullwidth"
+                  onClick={() => navigate("/biblioteca")}
+                  title="Sua biblioteca individual de imagens e sons"
+                >
+                  📚 Minha biblioteca
+                </button>
                 <button
                   className="btn-primary fullwidth"
                   onClick={() => navigate("/join")}
@@ -377,6 +357,13 @@ function EditorLayout({
                   onClick={() => navigate("/regras")}
                 >
                   Regras
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline fullwidth"
+                  onClick={() => navigate("/lore")}
+                >
+                  Lore
                 </button>
               </div>
               <div className="nav-group nav-group-end">
@@ -498,10 +485,25 @@ function EditorLayout({
                         <label>Nível</label>
                         <input
                           type="number"
+                          min={1}
                           value={sheet.level || ""}
-                          onChange={(e) => setSheet({ ...sheet, level: e.target.value === "" ? 0 : Number(e.target.value) })}
+                          onChange={(e) => {
+                            const nextLevel = e.target.value === "" ? 0 : Number(e.target.value);
+                            const prevLevel = Number(sheet.level) || 0;
+                            if (nextLevel > prevLevel && prevLevel > 0) {
+                              const { sheet: leveled, rolls, gain } = applyLevelUpHp(sheet, prevLevel, nextLevel);
+                              const detail = rolls.map((r) => `d12=${r.value}`).join(", ");
+                              window.alert(
+                                `Level up ${prevLevel} → ${nextLevel}\nPV +${gain} ((1+FIS)×d12 por nível)\n${detail}\nNovo máx: ${leveled.bars.maxHp}`
+                              );
+                              setSheet(leveled);
+                              return;
+                            }
+                            setSheet({ ...sheet, level: nextLevel });
+                          }}
                           onBlur={() => saveSheet(sheet)}
                           className="input-number"
+                          title="Ao subir de nível: rola (1+FIS) d12 e soma ao PV"
                         />
                       </div>
                     </div>
@@ -580,6 +582,7 @@ function EditorLayout({
                       effectiveStats={effectiveStats}
                       onUpdateSheet={setSheet}
                       username={username}
+                      sessionId={sessionId}
                       onRollComplete={(rollData) => {
                         console.log("Roll completed:", rollData);
                       }}
@@ -619,6 +622,7 @@ function EditorLayout({
                 effectiveStats={effectiveStats}
                 onUpdateSheet={setSheet}
                 username={username}
+                sessionId={sessionId}
                 onRollComplete={(rollData) => {
                   console.log("Roll completed:", rollData);
                 }}
@@ -929,6 +933,13 @@ export default function RPGPlayerEditor() {
             >
               Ler regras do sistema
             </button>
+            <button
+              type="button"
+              className="btn-outline fullwidth login-regras"
+              onClick={() => navigate("/lore")}
+            >
+              Ler lore do universo
+            </button>
           </form>
         </div>
       </div>
@@ -955,6 +966,7 @@ export default function RPGPlayerEditor() {
         />
         <Routes>
           <Route path="/regras" element={<RulesPage />} />
+          <Route path="/lore" element={<LorePage />} />
           <Route path="*" element={loginForm} />
         </Routes>
       </UserProvider>
@@ -991,6 +1003,7 @@ export default function RPGPlayerEditor() {
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
       <Routes>
         <Route path="/regras" element={<RulesPage />} />
+        <Route path="/lore" element={<LorePage />} />
         <Route path="/notas" element={<NotesPage />} />
         <Route path="/biblioteca" element={<GmLibraryPage />} />
         <Route path="/" element={<EditorLayout sessionId={null} {...editorLayoutProps} />} />

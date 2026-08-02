@@ -12,13 +12,23 @@ import {
   deleteToken,
   subscribeAreas,
   addArea,
+  updateArea,
   deleteArea,
+  updateFogCells,
   endSession,
 } from "../services/sessionService";
 import NotesPanel from "./NotesPanel";
 import SessionGmPanel, { SessionHandoutOverlay, SessionPublicReminder } from "./SessionGmPanel";
 import SessionBroadcastAudio from "./SessionBroadcastAudio";
 import { formatTurnBadge, getCurrentParticipant, normalizeRoundTracker } from "../utils/roundTracker";
+import {
+  cellsForCircle,
+  cellsForDiameter,
+  translateCells,
+  tokenFootprint,
+  computeVisibleCells,
+} from "../utils/mapAreas";
+import { reevaluateZoneEffectsForToken } from "../utils/zoneEffects";
 import "./MapView.css";
 
 const MAX_CELL_PX = 36;
@@ -70,6 +80,19 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const [showAreaNameModal, setShowAreaNameModal] = useState(false);
   const [coneAngleDeg, setConeAngleDeg] = useState(90);
   const [showNotesOverlay, setShowNotesOverlay] = useState(false);
+  const [gmTokenW, setGmTokenW] = useState("1");
+  const [gmTokenH, setGmTokenH] = useState("1");
+  const [areaRadius, setAreaRadius] = useState("3");
+  const [areaAnchorTokenId, setAreaAnchorTokenId] = useState("");
+  const [areaZoneMode, setAreaZoneMode] = useState("none");
+  const [areaZoneTick, setAreaZoneTick] = useState("turnEnd");
+  const [areaZoneDamage, setAreaZoneDamage] = useState("0");
+  const [areaZoneName, setAreaZoneName] = useState("");
+  const [areaKind, setAreaKind] = useState("area");
+  const [fogMode, setFogMode] = useState(false);
+  const [draggingAreaId, setDraggingAreaId] = useState(null);
+  const areaDragStartRef = useRef(null);
+  const areaGeomRef = useRef(null);
   const coneDraftRef = useRef(null);
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -188,12 +211,16 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       characterName: name,
       x,
       y,
+      width: Math.max(1, Number(gmTokenW) || 1),
+      height: Math.max(1, Number(gmTokenH) || 1),
       color: gmTokenColor,
       mapIndex: currentMapIndex,
     });
     setGmTokenName("");
     setGmAddAtX(String(Math.floor(session.mapWidth / 2)));
     setGmAddAtY(String(Math.floor(session.mapHeight / 2)));
+    setGmTokenW("1");
+    setGmTokenH("1");
     setShowGmAddToken(false);
   };
 
@@ -218,22 +245,30 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     return { x: cellX, y: cellY };
   };
 
-  const handleMapClick = (e) => {
-    if (!rulerMode && !areaTool && (e.target.closest(".map-token") || e.target.closest(".map-token-menu"))) return;
+  const handleMapClick = async (e) => {
+    if (!rulerMode && !areaTool && !fogMode && (e.target.closest(".map-token") || e.target.closest(".map-token-menu"))) return;
     if (rulerMode) {
       const cell = getCellFromEvent(e);
       if (!cell) return;
       setRulerPoints((p) => (p.length >= 2 ? [cell] : [...p, cell]));
       return;
     }
-    if (!areaTool || !session) return;
+    if (!session) return;
     const cell = getCellFromEvent(e);
     if (!cell) return;
     const gridW = session.mapWidth || 20;
     const gridH = session.mapHeight || 15;
+    if (fogMode && isGM) {
+      const fog = Array.isArray(session.fogCells) ? [...session.fogCells] : [];
+      const idx = fog.findIndex((c) => c.x === cell.x && c.y === cell.y);
+      if (idx >= 0) fog.splice(idx, 1);
+      else fog.push({ x: cell.x, y: cell.y });
+      await updateFogCells(sessionId, fog);
+      return;
+    }
+    if (!areaTool) return;
     if (areaTool === "freeform") {
       setAreaDraft((prev) => {
-        const key = `${cell.x},${cell.y}`;
         const has = prev.some((c) => c.x === cell.x && c.y === cell.y);
         if (has) return prev.filter((c) => !(c.x === cell.x && c.y === cell.y));
         return [...prev, { x: cell.x, y: cell.y }];
@@ -245,19 +280,36 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         setAreaDraftCenter(cell);
         return;
       }
-      const cx = (areaDraftCenter.x + cell.x) / 2;
-      const cy = (areaDraftCenter.y + cell.y) / 2;
-      const radius = Math.sqrt(Math.pow(cell.x - areaDraftCenter.x, 2) + Math.pow(cell.y - areaDraftCenter.y, 2)) / 2;
-      const cells = [];
-      for (let x = 0; x < gridW; x++) {
-        for (let y = 0; y < gridH; y++) {
-          const dist = Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2));
-          if (dist <= radius + 0.5) cells.push({ x, y });
-        }
-      }
-      setAreaDraft(cells);
+      const built = cellsForDiameter(areaDraftCenter, cell, gridW, gridH);
+      areaGeomRef.current = { center: built.center, radius: built.radius };
+      setAreaDraft(built.cells);
       setAreaDraftCenter(null);
       setShowAreaNameModal(true);
+      return;
+    }
+    if (areaTool === "circleRadius") {
+      const anchor = visibleTokens.find((t) => t.id === areaAnchorTokenId);
+      const center = anchor
+        ? { x: tokenFootprint(anchor).cx, y: tokenFootprint(anchor).cy }
+        : cell;
+      const r = Math.max(0.5, Number(areaRadius) || 3);
+      const built = cellsForCircle(center, r, gridW, gridH);
+      areaGeomRef.current = {
+        center: built.center,
+        radius: built.radius,
+        anchoredTo: anchor ? { type: "token", id: anchor.id } : null,
+      };
+      setAreaDraft(built.cells);
+      setShowAreaNameModal(true);
+      return;
+    }
+    if (areaTool === "wall" || areaTool === "table" || areaTool === "prop") {
+      setAreaDraft((prev) => {
+        const has = prev.some((c) => c.x === cell.x && c.y === cell.y);
+        if (has) return prev.filter((c) => !(c.x === cell.x && c.y === cell.y));
+        return [...prev, { x: cell.x, y: cell.y }];
+      });
+      setAreaKind(areaTool);
       return;
     }
     if (areaTool === "cone") {
@@ -320,12 +372,59 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const saveArea = async (e) => {
     e.preventDefault();
     if (areaDraft.length === 0) return;
-    await addArea(sessionId, { name: areaName || "Área", type: areaTool, cells: areaDraft, color: areaColor });
+    const geom = areaGeomRef.current || {};
+    let zoneEffect = null;
+    if (areaZoneMode === "continuous") {
+      zoneEffect = {
+        mode: "continuous",
+        continuous: { kind: "damage", amount: Number(areaZoneDamage) || 0 },
+        statusTemplate: null,
+      };
+    } else if (areaZoneMode === "status") {
+      zoneEffect = {
+        mode: "status",
+        continuous: null,
+        statusTemplate: {
+          name: areaZoneName || areaName || "Efeito de área",
+          damage: Number(areaZoneDamage) || 0,
+          rounds: 0,
+          tickMode: areaZoneTick,
+        },
+      };
+    }
+    const kind = ["wall", "table", "prop"].includes(areaTool) ? areaTool : areaKind || "area";
+    await addArea(sessionId, {
+      name: areaName || (kind === "wall" ? "Parede" : "Área"),
+      type: areaTool,
+      cells: areaDraft,
+      color: areaColor,
+      center: geom.center || null,
+      radius: geom.radius ?? null,
+      anchoredTo: geom.anchoredTo || null,
+      zoneEffect,
+      kind,
+    });
     setAreaDraft([]);
     setAreaName("");
     setAreaTool(null);
+    setAreaZoneMode("none");
+    setAreaZoneDamage("0");
+    setAreaZoneName("");
     setShowAreaNameModal(false);
     coneDraftRef.current = null;
+    areaGeomRef.current = null;
+  };
+
+  const nudgeArea = async (area, dx, dy) => {
+    const nextCells = translateCells(area.cells, dx, dy, gridW, gridH);
+    const center = area.center
+      ? { x: area.center.x + dx, y: area.center.y + dy }
+      : null;
+    await updateArea(sessionId, area.id, {
+      cells: nextCells,
+      center,
+      anchoredTo: null,
+    });
   };
 
   const handleRemoveArea = async (areaId) => {
@@ -412,7 +511,16 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       const { x, y } = dragEndPosRef.current;
       const wasMoved = !!dragMetaRef.current.moved && (!currentToken || currentToken.x !== x || currentToken.y !== y);
       if (wasMoved) {
-        updateTokenPosition(sessionId, tokenIdToUpdate, { x, y }).catch(console.error);
+        updateTokenPosition(sessionId, tokenIdToUpdate, { x, y })
+          .then(() => {
+            const moved = { ...currentToken, x, y };
+            return reevaluateZoneEffectsForToken({
+              token: moved,
+              areas,
+              gmUsername: session.gmUsername,
+            });
+          })
+          .catch(console.error);
       } else if (currentToken && canEditTokenColor(currentToken)) {
         setTokenMenu({ tokenId: currentToken.id, x: e.clientX, y: e.clientY });
         setTokenEditColor(currentToken.color || "#6b7280");
@@ -468,14 +576,33 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     );
   }
 
+  const gridW = session.mapWidth || 20;
+  const gridH = session.mapHeight || 15;
+  const cellSize = getCellSize(gridW, gridH);
+  const bgUrl = session.backgroundImageUrl || "";
+  const wallCells = areas.filter((a) => a.kind === "wall").flatMap((a) => a.cells || []);
+  const myViewerToken = myTokens[0] || visibleTokens.find((t) => t.ownerUsername === username);
+  const visibleCellSet = computeVisibleCells({
+    viewerToken: myViewerToken,
+    gridW,
+    gridH,
+    wallCells,
+    fogCells: session.fogCells || [],
+    isGM,
+  });
+
   const renderTokens = () => {
     return visibleTokens.map((token) => {
       const isDraggingThis = dragging.tokenId === token.id;
       const x = isDraggingThis ? dragging.gridX : token.x;
       const y = isDraggingThis ? dragging.gridY : token.y;
+      const tw = Math.max(1, Number(token.width) || 1);
+      const th = Math.max(1, Number(token.height) || 1);
       const draggable = canMoveToken(token);
       const pad = Math.max(2, Math.floor(cellSize * 0.06));
       const colorEditable = canEditTokenColor(token);
+      const hidden = !isGM && myViewerToken && !visibleCellSet.has(`${Math.round(x)},${Math.round(y)}`);
+      if (hidden && token.ownerUsername !== username) return null;
       return (
         <div
           key={token.id}
@@ -483,8 +610,8 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
           style={{
             left: x * cellSize + pad,
             top: y * cellSize + pad,
-            width: cellSize - pad * 2,
-            height: cellSize - pad * 2,
+            width: cellSize * tw - pad * 2,
+            height: cellSize * th - pad * 2,
             backgroundColor: token.color || "#6b7280",
           }}
           onPointerDown={(e) => handleTokenPointerDown(e, token)}
@@ -507,10 +634,6 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     });
   };
 
-  const gridW = session.mapWidth || 20;
-  const gridH = session.mapHeight || 15;
-  const cellSize = getCellSize(gridW, gridH);
-  const bgUrl = session.backgroundImageUrl || "";
   const roundTracker = normalizeRoundTracker(session.roundTracker);
   const currentTurnPlayer = getCurrentParticipant(roundTracker);
   const isMyTurn =
@@ -618,6 +741,13 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                   onChange={(e) => setGmAddAtY(e.target.value)}
                 />
               </div>
+              <div className="form-group">
+                <label>Tamanho (células L×A)</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="number" className="input-login" min={1} max={10} value={gmTokenW} onChange={(e) => setGmTokenW(e.target.value)} />
+                  <input type="number" className="input-login" min={1} max={10} value={gmTokenH} onChange={(e) => setGmTokenH(e.target.value)} />
+                </div>
+              </div>
               <button type="submit" className="btn-primary fullwidth">Colocar</button>
               <button type="button" className="btn-secondary fullwidth" style={{ marginTop: 8 }} onClick={() => setShowGmAddToken(false)}>Cancelar</button>
             </form>
@@ -651,6 +781,38 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                 <label>Cor</label>
                 <input type="color" value={areaColor} onChange={(e) => setAreaColor(e.target.value)} className="input-color" />
               </div>
+              <div className="form-group">
+                <label>Efeito da zona</label>
+                <select className="input-login" value={areaZoneMode} onChange={(e) => setAreaZoneMode(e.target.value)}>
+                  <option value="none">Nenhum</option>
+                  <option value="continuous">Contínuo (some ao sair)</option>
+                  <option value="status">Status (tick turno/rodada)</option>
+                </select>
+              </div>
+              {areaZoneMode !== "none" && (
+                <>
+                  <div className="form-group">
+                    <label>Dano / valor</label>
+                    <input type="number" className="input-login" value={areaZoneDamage} onChange={(e) => setAreaZoneDamage(e.target.value)} />
+                  </div>
+                  {areaZoneMode === "status" && (
+                    <>
+                      <div className="form-group">
+                        <label>Nome do status</label>
+                        <input className="input-login" value={areaZoneName} onChange={(e) => setAreaZoneName(e.target.value)} placeholder="Envenenado..." />
+                      </div>
+                      <div className="form-group">
+                        <label>Tick</label>
+                        <select className="input-login" value={areaZoneTick} onChange={(e) => setAreaZoneTick(e.target.value)}>
+                          <option value="turnEnd">Fim do turno</option>
+                          <option value="turnStart">Início do turno</option>
+                          <option value="round">Fim da rodada</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
               <button type="submit" className="btn-primary fullwidth">Salvar área</button>
               <button type="button" className="btn-secondary fullwidth" style={{ marginTop: 8 }} onClick={() => { setShowAreaNameModal(false); setAreaDraft([]); setAreaName(""); coneDraftRef.current = null; }}>Cancelar</button>
             </form>
@@ -785,31 +947,61 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
             <button type="button" className="btn-primary" onClick={openGmSettings}>
               Configurar mapa
             </button>
-            {areas.length > 0 && (
-              <div className="map-areas-list">
-                {areas.map((a) => (
-                  <span key={a.id} className="map-area-chip">
-                    {a.name}
-                    <button type="button" className="btn-danger small" onClick={() => handleRemoveArea(a.id)} title="Remover área">×</button>
-                  </span>
-                ))}
-              </div>
-            )}
             {!areaTool ? (
-              <select className="input-login" style={{ width: "auto" }} value="" onChange={(e) => { const v = e.target.value; if (v) { setAreaTool(v); setAreaDraft([]); setAreaDraftCenter(null); } }}>
-                <option value="">Área de efeito...</option>
-                <option value="circle">Círculo</option>
+              <select className="input-login" style={{ width: "auto" }} value="" onChange={(e) => { const v = e.target.value; if (v) { setAreaTool(v); setAreaDraft([]); setAreaDraftCenter(null); setAreaKind(v === "wall" || v === "table" || v === "prop" ? v : "area"); } }}>
+                <option value="">Área / objeto...</option>
+                <option value="circle">Círculo (diâmetro)</option>
+                <option value="circleRadius">Círculo (centro em token + raio)</option>
                 <option value="cone">Cone</option>
                 <option value="freeform">Desenho livre</option>
+                <option value="wall">Parede (obscura visão)</option>
+                <option value="table">Mesa / obstáculo</option>
+                <option value="prop">Prop / grupo</option>
               </select>
             ) : (
               <>
-                <span className="muted">Desenhando: {areaTool === "circle" ? "Círculo (clique 2 pontos do diâmetro)" : areaTool === "cone" ? "Cone (clique origem, depois direção)" : "Livre (clique nas células)"}</span>
-                {areaTool === "freeform" && <button type="button" className="btn-primary" onClick={finishFreeformArea}>Concluir desenho</button>}
+                <span className="muted">
+                  {areaTool === "circle" && "Círculo: 2 pontos (polo fora da grid é ajustado)"}
+                  {areaTool === "circleRadius" && "Clique no mapa (ou use token) + raio"}
+                  {areaTool === "cone" && "Cone: origem + direção"}
+                  {areaTool === "freeform" && "Livre: clique nas células"}
+                  {(areaTool === "wall" || areaTool === "table" || areaTool === "prop") && "Clique células; depois Concluir"}
+                </span>
+                {areaTool === "circleRadius" && (
+                  <>
+                    <select className="input-login" style={{ width: "auto" }} value={areaAnchorTokenId} onChange={(e) => setAreaAnchorTokenId(e.target.value)}>
+                      <option value="">Centro: célula clicada</option>
+                      {visibleTokens.map((t) => (
+                        <option key={t.id} value={t.id}>{t.characterName}</option>
+                      ))}
+                    </select>
+                    <input type="number" className="input-login" style={{ width: 64 }} min={1} value={areaRadius} onChange={(e) => setAreaRadius(e.target.value)} title="Raio" />
+                  </>
+                )}
+                {(areaTool === "freeform" || areaTool === "wall" || areaTool === "table" || areaTool === "prop") && (
+                  <button type="button" className="btn-primary" onClick={finishFreeformArea}>Concluir desenho</button>
+                )}
                 <button type="button" className="btn-secondary" onClick={() => { setAreaTool(null); setAreaDraft([]); setAreaDraftCenter(null); setShowAreaNameModal(false); }}>Cancelar</button>
               </>
             )}
+            <button type="button" className={`btn-outline ${fogMode ? "btn-primary" : ""}`} onClick={() => setFogMode((v) => !v)}>
+              {fogMode ? "FoW: pintando…" : "Fog of war"}
+            </button>
           </>
+        )}
+        {isGM && areas.length > 0 && (
+          <div className="map-areas-list">
+            {areas.map((a) => (
+              <span key={a.id} className="map-area-chip">
+                {a.name}{a.kind && a.kind !== "area" ? ` [${a.kind}]` : ""}
+                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, -1, 0)} title="←">←</button>
+                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 1, 0)} title="→">→</button>
+                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 0, -1)} title="↑">↑</button>
+                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 0, 1)} title="↓">↓</button>
+                <button type="button" className="btn-danger small" onClick={() => handleRemoveArea(a.id)} title="Remover">×</button>
+              </span>
+            ))}
+          </div>
         )}
         <button type="button" className="btn-primary" onClick={handleBack}>
           Sair da sessão
@@ -878,7 +1070,9 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
         <div className="map-areas-layer">
           {areas.map((area) => (
             <React.Fragment key={area.id}>
-              {(area.cells || []).map((c, i) => (
+              {(area.cells || []).map((c, i) => {
+                if (!isGM && !visibleCellSet.has(`${c.x},${c.y}`)) return null;
+                return (
                 <div
                   key={i}
                   className="map-area-cell"
@@ -887,13 +1081,29 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                     top: c.y * cellSize + 1,
                     width: cellSize - 2,
                     height: cellSize - 2,
-                    backgroundColor: area.color,
+                    backgroundColor: area.kind === "wall" ? "rgba(30,30,30,0.85)" : area.color,
                   }}
-                  title={area.name}
+                  title={`${area.name}${area.zoneEffect ? " · efeito" : ""}`}
                 />
-              ))}
+                );
+              })}
             </React.Fragment>
           ))}
+          {!isGM &&
+            (session.fogCells || []).map((c, i) => (
+              <div
+                key={`fog-${i}`}
+                className="map-area-cell"
+                style={{
+                  left: c.x * cellSize,
+                  top: c.y * cellSize,
+                  width: cellSize,
+                  height: cellSize,
+                  backgroundColor: "rgba(0,0,0,0.85)",
+                  pointerEvents: "none",
+                }}
+              />
+            ))}
         </div>
         {((areaDraftCenter ? [areaDraftCenter] : []).concat(areaDraft)).length > 0 && (
           <div className="map-areas-layer map-areas-layer--draft">

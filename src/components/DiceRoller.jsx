@@ -1,13 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { rollDie, dieSides, rollDiceString } from "../utils/dice";
 import { saveRollToHistory, getRollHistory } from "../services/rollHistoryService";
+import { saveSessionRoll } from "../services/sessionRollService";
+import { STAT_LABELS, ALL_STATS, critEffect, isAirBreak, tipText } from "../utils/rampageRules";
 import "./DiceRoller.css";
+
+function publishRoll(username, sessionId, sheet, payload) {
+  if (username) saveRollToHistory(username, payload);
+  if (sessionId) {
+    saveSessionRoll(sessionId, {
+      ...payload,
+      roller: username,
+      characterName: sheet?.name || username,
+      visibility: "all",
+    });
+  }
+}
 
 export default function DiceRoller({ 
   sheet, 
   effectiveStats,
   onUpdateSheet,
-  username, 
+  username,
+  sessionId,
   onRollComplete,
   onConsumePendingRollPower
 }) {
@@ -31,9 +46,20 @@ export default function DiceRoller({
   const [historyFilter, setHistoryFilter] = useState("");
   const [rollModifier, setRollModifier] = useState(0);
   const [isAdvantageRoll, setIsAdvantageRoll] = useState(false);
+  const [ruleTip, setRuleTip] = useState(null);
   const pendingRollPower = sheet?.pendingRollPower || null;
   const flashTimer = useRef(null);
   const haloTimer = useRef(null);
+
+  const announceTips = (d20Value, finalTotal) => {
+    const tips = [];
+    const crit = critEffect(d20Value);
+    if (crit) tips.push(crit);
+    if (isAirBreak(finalTotal, d20Value)) {
+      tips.push({ code: "air-break", title: "Air Break!", detail: tipText("air-break") });
+    }
+    setRuleTip(tips.length ? tips : null);
+  };
 
   useEffect(() => {
     if (username && activeTab === "history") {
@@ -74,16 +100,15 @@ export default function DiceRoller({
       setHaloIndices([{ index: 0, color: "green" }]);
       setHighlightedResult(0);
       triggerFullFlash("green");
-      if (username) {
-        saveRollToHistory(username, {
-          diceString: "Certeza (19 automático)",
-          results: [raw],
-          modifier: totalMod,
-          total,
-          attribute: selectedModAttr,
-          manualMod: Number(manualMod || 0),
-        });
-      }
+      publishRoll(username, sessionId, sheet, {
+        diceString: "Certeza (19 automático)",
+        results: [raw],
+        modifier: totalMod,
+        total,
+        attribute: selectedModAttr,
+        manualMod: Number(manualMod || 0),
+      });
+      announceTips(raw, total);
       if (onRollComplete) {
         onRollComplete({ results, total, diceString: "Certeza (19 automático)" });
       }
@@ -119,18 +144,17 @@ export default function DiceRoller({
     setHaloIndices(haloIndices);
     setHighlightedResult(null);
     
-    // Save to Firebase
-    if (username) {
-      saveRollToHistory(username, {
-        diceString: `${count}${type}`,
-        results: results.map(r => r.raw),
-        modifier: totalMod,
-        total: totalSum,
-        attribute: selectedModAttr,
-        manualMod: Number(manualMod || 0)
-      });
-    }
-    
+    publishRoll(username, sessionId, sheet, {
+      diceString: `${count}${type}`,
+      results: results.map(r => r.raw),
+      modifier: totalMod,
+      total: totalSum,
+      attribute: selectedModAttr,
+      manualMod: Number(manualMod || 0)
+    });
+    if (isSingleD20) announceTips(results[0]?.raw, totalSum);
+    else setRuleTip(null);
+
     if (onRollComplete) {
       onRollComplete({ results, total: totalSum, diceString: `${count}${type}` });
     }
@@ -166,16 +190,15 @@ export default function DiceRoller({
       if (out.results[0] === 1) triggerFullFlash("red");
       if (out.results[0] === 20) triggerFullFlash("green");
     }
-    if (username) {
-      saveRollToHistory(username, {
-        diceString: shortcut.diceString || shortcut.label,
-        results: out.results,
-        modifier: attrMod,
-        total: out.total,
-        attribute: shortcut.modifierAttr === "puro" || !shortcut.modifierAttr ? "puro" : shortcut.modifierAttr,
-        manualMod: 0
-      });
-    }
+    publishRoll(username, sessionId, sheet, {
+      diceString: shortcut.diceString || shortcut.label,
+      results: out.results,
+      modifier: attrMod,
+      total: out.total,
+      attribute: shortcut.modifierAttr === "puro" || !shortcut.modifierAttr ? "puro" : shortcut.modifierAttr,
+      manualMod: 0
+    });
+    if (out.results.length === 1) announceTips(out.results[0], out.total);
     if (onRollComplete) onRollComplete({ results, total: out.total, diceString: shortcut.diceString });
   };
 
@@ -231,16 +254,15 @@ export default function DiceRoller({
     if (a.includes(1)) triggerFullFlash("red");
     setHaloIndices(haloIndices);
 
-    if (username) {
-      saveRollToHistory(username, {
-        diceString: isAdvantage ? "Vantagem (d20x2)" : "Desvantagem (d20x2)",
-        results: a,
-        modifier: totalMod,
-        total: totalSum,
-        attribute: selectedModAttr,
-        manualMod: Number(manualMod || 0),
-      });
-    }
+    publishRoll(username, sessionId, sheet, {
+      diceString: isAdvantage ? "Vantagem (d20x2)" : "Desvantagem (d20x2)",
+      results: a,
+      modifier: totalMod,
+      total: totalSum,
+      attribute: selectedModAttr,
+      manualMod: Number(manualMod || 0),
+    });
+    announceTips(chosenValue, totalSum);
     if ((forceConsume || pendingRollPower) && onConsumePendingRollPower) {
       onConsumePendingRollPower(pendingRollPower || "inspiration");
     }
@@ -267,16 +289,15 @@ export default function DiceRoller({
     if (result === 1) triggerFullFlash("red");
     if (result === 20) triggerFullFlash("green");
     
-    if (username) {
-      saveRollToHistory(username, {
-        diceString: "Iniciativa (d20)",
-        results: [result],
-        modifier: 0,
-        total: result,
-        attribute: "puro",
-        manualMod: 0
-      });
-    }
+    publishRoll(username, sessionId, sheet, {
+      diceString: "Iniciativa (d20)",
+      results: [result],
+      modifier: 0,
+      total: result,
+      attribute: "puro",
+      manualMod: 0
+    });
+    announceTips(result, result);
   };
 
   const formatTimestamp = (timestamp) => {
@@ -363,9 +384,9 @@ export default function DiceRoller({
             className="select"
           >
             <option value="puro">Puro (0)</option>
-            {Object.entries(stats).map(([k, v]) => (
+            {ALL_STATS.map((k) => (
               <option key={k} value={k}>
-                {k.toUpperCase()} ({v})
+                {STAT_LABELS[k] || k} ({stats[k] ?? 0})
               </option>
             ))}
           </select>
@@ -391,13 +412,42 @@ export default function DiceRoller({
           </button>
         </div>
         
+        {ruleTip && (
+          <div className="rule-tip-banner" style={{ marginTop: 8, padding: 8, background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", borderRadius: 8 }}>
+            {ruleTip.map((t) => (
+              <div key={t.code} style={{ marginBottom: 4 }}>
+                <strong>{t.title}</strong>
+                <div className="muted small">{t.detail}</div>
+              </div>
+            ))}
+            {ruleTip.some((t) => t.code === "air-break") && onUpdateSheet && (
+              <button
+                type="button"
+                className="btn-primary small"
+                style={{ marginTop: 4 }}
+                onClick={() => {
+                  const s = JSON.parse(JSON.stringify(sheet));
+                  if (!s.bars) s.bars = {};
+                  for (const key of ["hp", "inata", "ether", "vigor"]) {
+                    const cur = Number(s.bars[key]) || 0;
+                    s.bars[key] = cur + Math.floor(cur / 2);
+                  }
+                  onUpdateSheet(s);
+                  alert("Air Break aplicado: +metade das barras atuais (lembrete: dano ×2,5 na narrativa).");
+                }}
+              >
+                Aplicar Air Break (recupera metade das barras atuais)
+              </button>
+            )}
+          </div>
+        )}
+
         {lastRollTotal !== null && (
           <div className="roll-summary">
             {rollResults.length > 0 && (
               <div className="roll-breakdown muted small">
                 {isAdvantageRoll ? (
-                  <>
-                    {rollResults.map((r, i) => (
+                  <>                    {rollResults.map((r, i) => (
                       <span key={i}>
                         {i > 0 ? " · " : ""}
                         {highlightedResult === i ? (

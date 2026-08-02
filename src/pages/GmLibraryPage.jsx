@@ -7,7 +7,6 @@ import {
   deleteGmLibraryItem,
   readFileAsDataUrl,
 } from "../services/gmLibraryService";
-import { isMestreAccount } from "../utils/mestreAccount";
 import "./GmLibraryPage.css";
 
 function LibrarySection({ type, label, username, accept, isAudio }) {
@@ -118,12 +117,12 @@ export default function GmLibraryPage() {
   const { username } = useUser() || {};
 
   useEffect(() => {
-    if (!isMestreAccount(username)) {
+    if (!username) {
       navigate("/", { replace: true });
     }
   }, [username, navigate]);
 
-  if (!isMestreAccount(username)) {
+  if (!username) {
     return null;
   }
 
@@ -133,11 +132,11 @@ export default function GmLibraryPage() {
         <button type="button" className="btn-outline" onClick={() => navigate(-1)}>
           ← Voltar
         </button>
-        <h1>Biblioteca do Mestre</h1>
+        <h1>Minha biblioteca</h1>
       </div>
       <p className="muted gm-library-intro">
-        Imagens e sons ficam no seu perfil. Ao criar uma sessão, você escolhe quais
-        usar na mesa (handouts, ambiente, etc.).
+        Imagens e sons são individuais — só você vê os seus. Use URLs de sons nas
+        habilidades da ficha. O mestre escolhe itens da própria lib ao criar a sessão.
       </p>
       <LibrarySection
         type="images"

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { canSpendResource } from "../utils/rampageRules";
 import "./AbilityCard.css";
 
 const MAGIC_FIELDS = [
@@ -7,6 +8,7 @@ const MAGIC_FIELDS = [
   { value: "invocacao", label: "Invocação" },
   { value: "conjuracao", label: "Conjuração" },
   { value: "transmutacao", label: "Transmutação" },
+  { value: "abjuracao", label: "Abjuração" },
 ];
 
 export default function AbilityCard({ 
@@ -28,9 +30,9 @@ export default function AbilityCard({
   };
 
   const getResourceName = (abilityType) => {
-    if (abilityType === "inata") return "Inata";
+    if (abilityType === "inata") return "PE";
     if (abilityType === "magia") return "Vigor";
-    if (abilityType === "arte") return "Ether";
+    if (abilityType === "arte") return "Éter";
     return "";
   };
 
@@ -38,7 +40,9 @@ export default function AbilityCard({
   const cost = getEffectiveCost ? getEffectiveCost(ability) : baseCost;
   const resourceBar = getResourceBar(ability.type);
   const currentResource = sheet?.bars?.[resourceBar] || 0;
-  const canUse = baseCost > 0 && currentResource >= cost;
+  const spendKey = resourceBar === "inata" ? "pe" : resourceBar;
+  const overheatBlocked = resourceBar && !canSpendResource(sheet, spendKey);
+  const canUse = baseCost > 0 && currentResource >= cost && !overheatBlocked;
   const costLabel = cost !== baseCost ? `${cost} (${baseCost} base)` : `${cost}`;
   const [isExpanded, setIsExpanded] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -88,7 +92,13 @@ export default function AbilityCard({
               onClick={() => onUse(ability)}
               disabled={!canUse}
               aria-label="Usar habilidade"
-              title={canUse ? `Usar (gasta ${costLabel} de ${getResourceName(ability.type)})` : `Recurso insuficiente (${currentResource}/${cost})`}
+              title={
+                overheatBlocked
+                  ? "Overheat: recurso bloqueado"
+                  : canUse
+                    ? `Usar (gasta ${costLabel} de ${getResourceName(ability.type)})`
+                    : `Recurso insuficiente (${currentResource}/${cost})`
+              }
             >
               Usar
             </button>
@@ -212,10 +222,18 @@ export default function AbilityCard({
                   min="0"
                 />
                 <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
-                  {editData.type === "inata" && "Gasta pontos de Inata"}
+                  {editData.type === "inata" && "Gasta pontos de PE"}
                   {editData.type === "magia" && "Gasta pontos de Vigor"}
-                  {editData.type === "arte" && "Gasta pontos de Ether"}
+                  {editData.type === "arte" && "Gasta pontos de Éter"}
                 </div>
+                <label style={{ display: "block", marginTop: 8 }}>Som (URL da sua biblioteca)</label>
+                <input
+                  type="text"
+                  className="input-login"
+                  value={editData.soundUrl || ""}
+                  onChange={(e) => setEditData({ ...editData, soundUrl: e.target.value })}
+                  placeholder="https://... (opcional)"
+                />
               </div>
               <div className="form-group">
                 <label>Tipo</label>

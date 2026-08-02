@@ -4,15 +4,21 @@ import {
   updateRoundTracker,
   switchSessionMap,
 } from "../services/sessionService";
+import { subscribeSessionRolls } from "../services/sessionRollService";
+import {
+  fetchCharacterSheet,
+  writeCharacterSheet,
+} from "../services/characterPatchService";
 import {
   normalizeRoundTracker,
   buildTurnOrderFromTokens,
   getCurrentParticipant,
   getGlobalTurnNumber,
-  advanceTurn,
   setTurnOrder,
   moveTurnOrderEntry,
 } from "../utils/roundTracker";
+import { processTurnAdvance, resolveParticipantCharacter } from "../utils/sessionCombatTick";
+import { normalizeEffect } from "../utils/rampageRules";
 import "./SessionGmPanel.css";
 
 export default function SessionGmPanel({
@@ -30,6 +36,10 @@ export default function SessionGmPanel({
   const [reminderTrigger, setReminderTrigger] = useState("round");
   const [reminderAt, setReminderAt] = useState(1);
   const [reminderVisibility, setReminderVisibility] = useState("gm");
+  const [sessionRolls, setSessionRolls] = useState([]);
+  const [combatSheets, setCombatSheets] = useState({});
+  const [combatLog, setCombatLog] = useState([]);
+  const [damageDraft, setDamageDraft] = useState({});
 
   const tracker = normalizeRoundTracker(session?.roundTracker);
   const currentParticipant = getCurrentParticipant(tracker);
@@ -48,6 +58,30 @@ export default function SessionGmPanel({
       u2 && u2();
     };
   }, [username, isGM]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    return subscribeSessionRolls(sessionId, setSessionRolls, 30);
+  }, [sessionId]);
+
+  const refreshCombatSheets = async () => {
+    if (!isGM) return;
+    const next = {};
+    for (const p of tracker.turnOrder || []) {
+      const target = resolveParticipantCharacter(p, tokens, gmUsername);
+      if (!target?.ownerUsername || !target.characterId) continue;
+      const key = `${target.ownerUsername}/${target.characterId}`;
+      if (next[key]) continue;
+      const sheet = await fetchCharacterSheet(target.ownerUsername, target.characterId);
+      if (sheet) next[key] = { ...sheet, _label: target.label, _owner: target.ownerUsername };
+    }
+    setCombatSheets(next);
+  };
+
+  useEffect(() => {
+    if (isGM && showPanel) refreshCombatSheets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGM, showPanel, tracker.currentTurnIndex, tracker.currentRound, tokens.length]);
 
   const sessionImages = images.filter((i) => selectedImageIds.includes(i.id));
   const sessionSounds = sounds.filter((s) => selectedSoundIds.includes(s.id));
@@ -86,14 +120,51 @@ export default function SessionGmPanel({
   };
 
   const applyTurnChange = async (direction) => {
-    let next = advanceTurn(tracker, direction);
-    next = checkReminders(next, "turn");
-    if (direction > 0 && next.currentRound > tracker.currentRound) {
-      next = checkReminders(next, "round");
-    } else if (direction < 0 && next.currentRound < tracker.currentRound) {
-      next = checkReminders(next, "round");
+    try {
+      const { tracker: advanced, combatLogs } = await processTurnAdvance({
+        session,
+        tokens,
+        direction,
+      });
+      let next = checkReminders(advanced, "turn");
+      if (direction > 0 && next.currentRound > tracker.currentRound) {
+        next = checkReminders(next, "round");
+      } else if (direction < 0 && next.currentRound < tracker.currentRound) {
+        next = checkReminders(next, "round");
+      }
+      await saveTracker(next);
+      if (combatLogs?.length) {
+        setCombatLog((prev) => [...combatLogs, ...prev].slice(0, 40));
+        refreshCombatSheets();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Falha ao avançar turno / aplicar ticks: " + (err?.message || err));
     }
-    await saveTracker(next);
+  };
+
+  const applyGmDamage = async (owner, characterId, amount) => {
+    const sheet = await fetchCharacterSheet(owner, characterId);
+    if (!sheet) return;
+    const s = JSON.parse(JSON.stringify(sheet));
+    if (!s.bars) s.bars = {};
+    s.bars.hp = Math.max(0, (Number(s.bars.hp) || 0) - Number(amount || 0));
+    await writeCharacterSheet(owner, characterId, s);
+    refreshCombatSheets();
+  };
+
+  const addGmEffect = async (owner, characterId) => {
+    const name = window.prompt("Nome do efeito (ex: Envenenado)");
+    if (!name) return;
+    const tickMode = window.prompt("tickMode: turnStart | turnEnd | round", "turnEnd") || "turnEnd";
+    const damage = Number(window.prompt("Dano por tick", "0") || 0);
+    const rounds = Number(window.prompt("Duração (0 = até remover)", "3") || 0);
+    const sheet = await fetchCharacterSheet(owner, characterId);
+    if (!sheet) return;
+    const s = JSON.parse(JSON.stringify(sheet));
+    s.effects = [...(s.effects || []), normalizeEffect({ id: Date.now(), name, damage, rounds, tickMode })];
+    await writeCharacterSheet(owner, characterId, s);
+    refreshCombatSheets();
   };
 
   const syncTurnOrderFromMap = async () => {
@@ -249,6 +320,74 @@ export default function SessionGmPanel({
                 ))}
               </ol>
             )}
+          </section>
+
+          <section className="session-gm-block">
+            <h4>Combate (fichas)</h4>
+            <button type="button" className="btn-outline small" onClick={refreshCombatSheets}>Atualizar barras</button>
+            <ul className="session-combat-list" style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
+              {Object.entries(combatSheets).map(([key, sh]) => (
+                <li key={key} style={{ marginBottom: 10, padding: 8, background: "rgba(0,0,0,0.2)", borderRadius: 8 }}>
+                  <strong>{sh._label || sh.name}</strong>
+                  <div className="muted small">
+                    PV {sh.bars?.hp ?? "?"} / {sh.bars?.maxHp ?? "?"} · PE {sh.bars?.inata ?? "?"} · Éter {sh.bars?.ether ?? "?"} · Vigor {sh.bars?.vigor ?? "?"}
+                  </div>
+                  <div className="muted small">
+                    Efeitos: {(sh.effects || []).map((e) => `${e.name}(${e.tickMode || "?"},${e.rounds || "∞"})`).join(", ") || "—"}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <input
+                      type="number"
+                      className="input-number"
+                      style={{ width: 64 }}
+                      placeholder="Dano"
+                      value={damageDraft[key] ?? ""}
+                      onChange={(e) => setDamageDraft((d) => ({ ...d, [key]: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      className="btn-danger small"
+                      onClick={() => applyGmDamage(sh._owner, sh.id, damageDraft[key])}
+                    >
+                      Aplicar dano
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline small"
+                      onClick={() => addGmEffect(sh._owner, sh.id)}
+                    >
+                      + Efeito
+                    </button>
+                  </div>
+                </li>
+              ))}
+              {Object.keys(combatSheets).length === 0 && (
+                <li className="muted small">Nenhuma ficha linkada aos tokens. Sincronize a ordem e garanta characterId nos tokens.</li>
+              )}
+            </ul>
+            {combatLog.length > 0 && (
+              <div className="muted small" style={{ marginTop: 8 }}>
+                <strong>Últimos ticks</strong>
+                <ul>
+                  {combatLog.slice(0, 8).map((c, i) => (
+                    <li key={i}>{c.who} [{c.kind}]: {c.logs.join("; ")}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <section className="session-gm-block">
+            <h4>Rolagens da mesa</h4>
+            <ul style={{ listStyle: "none", padding: 0, maxHeight: 180, overflow: "auto" }}>
+              {sessionRolls.map((r) => (
+                <li key={r.id} style={{ marginBottom: 6, fontSize: 12 }}>
+                  <strong>{r.characterName || r.roller}</strong>: {r.diceString} → <strong>{r.total}</strong>
+                  {r.attribute && r.attribute !== "puro" ? ` (${r.attribute})` : ""}
+                </li>
+              ))}
+              {sessionRolls.length === 0 && <li className="muted small">Nenhuma rolagem ainda nesta sessão.</li>}
+            </ul>
           </section>
 
           <section className="session-gm-block">

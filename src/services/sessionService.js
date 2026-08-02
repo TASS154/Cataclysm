@@ -192,6 +192,8 @@ export async function addToken(sessionId, data) {
     characterName: data.characterName || "Personagem",
     x: Number(data.x) ?? 0,
     y: Number(data.y) ?? 0,
+    width: Math.max(1, Number(data.width) || 1),
+    height: Math.max(1, Number(data.height) || 1),
     color: data.color || "#6b7280",
     mapIndex: Number(data.mapIndex) ?? 0,
   });
@@ -210,6 +212,8 @@ export async function updateTokenPosition(sessionId, tokenId, data) {
   if (data.x !== undefined) update.x = Number(data.x);
   if (data.y !== undefined) update.y = Number(data.y);
   if (data.color !== undefined) update.color = String(data.color);
+  if (data.width !== undefined) update.width = Math.max(1, Number(data.width) || 1);
+  if (data.height !== undefined) update.height = Math.max(1, Number(data.height) || 1);
   if (Object.keys(update).length === 0) return;
   await updateDoc(tokenRef, update);
 }
@@ -253,16 +257,25 @@ export function subscribeAreas(sessionId, callback) {
     const areas = snap.docs.map((d) => {
       const data = d.data();
       const cells = Array.isArray(data.cells) ? data.cells.map((c) => ({ x: Number(c.x) || 0, y: Number(c.y) || 0 })) : [];
-      return { id: d.id, name: data.name || "", type: data.type || "freeform", cells, color: data.color || "#6366f180" };
+      return {
+        id: d.id,
+        name: data.name || "",
+        type: data.type || "freeform",
+        cells,
+        color: data.color || "#6366f180",
+        center: data.center || null,
+        radius: data.radius ?? null,
+        anchoredTo: data.anchoredTo || null,
+        zoneEffect: data.zoneEffect || null,
+        kind: data.kind || "area",
+      };
     });
     callback(areas);
   });
 }
 
 /**
- * Adiciona uma área de efeito.
- * @param {string} sessionId
- * @param {{ name: string, type: 'circle'|'cone'|'freeform', cells: Array<{x: number, y: number}>, color?: string }} data
+ * Adiciona uma área de efeito / objeto.
  */
 export async function addArea(sessionId, data) {
   const areasCol = collection(db, SESSIONS_COLLECTION, sessionId, AREAS_SUBCOLLECTION);
@@ -271,7 +284,22 @@ export async function addArea(sessionId, data) {
     type: data.type || "freeform",
     cells: data.cells || [],
     color: data.color || "#6366f180",
+    center: data.center || null,
+    radius: data.radius ?? null,
+    anchoredTo: data.anchoredTo || null,
+    zoneEffect: data.zoneEffect || null,
+    kind: data.kind || "area",
   });
+}
+
+export async function updateArea(sessionId, areaId, data) {
+  const areaRef = doc(db, SESSIONS_COLLECTION, sessionId, AREAS_SUBCOLLECTION, areaId);
+  const update = {};
+  for (const key of ["name", "type", "cells", "color", "center", "radius", "anchoredTo", "zoneEffect", "kind"]) {
+    if (data[key] !== undefined) update[key] = data[key];
+  }
+  if (Object.keys(update).length === 0) return;
+  await updateDoc(areaRef, update);
 }
 
 /**
@@ -280,4 +308,10 @@ export async function addArea(sessionId, data) {
 export async function deleteArea(sessionId, areaId) {
   const areaRef = doc(db, SESSIONS_COLLECTION, sessionId, AREAS_SUBCOLLECTION, areaId);
   await deleteDoc(areaRef);
+}
+
+/** Fog of war: array de células cobertas no doc da sessão. */
+export async function updateFogCells(sessionId, fogCells) {
+  const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
+  await updateDoc(sessionRef, { fogCells: fogCells || [] });
 }

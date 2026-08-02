@@ -42,6 +42,7 @@ export function buildTurnOrderFromTokens(tokens, gmUsername) {
       id: `player:${owner}`,
       label: token.characterName || owner,
       ownerUsername: owner,
+      characterId: token.characterId || null,
     });
   }
 
@@ -53,6 +54,7 @@ export function buildTurnOrderFromTokens(tokens, gmUsername) {
       label: token.characterName || "NPC",
       ownerUsername: owner || null,
       tokenId: token.id,
+      characterId: token.characterId || null,
     });
   }
 
