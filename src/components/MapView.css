@@ -330,3 +330,60 @@
   background: rgba(107, 70, 193, 0.15);
   font-weight: 600;
 }
+
+.map-turn-banner {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--border-color, #334155);
+  font-size: 0.92rem;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.map-turn-banner-round {
+  font-weight: 700;
+}
+
+.map-turn-banner-sep {
+  opacity: 0.5;
+}
+
+.map-turn-banner--yours {
+  border-color: rgba(34, 211, 238, 0.55);
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.map-turn-banner-you {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.25);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.map-area-exclude-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color, #334155);
+}
+
+.map-area-exclude-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}

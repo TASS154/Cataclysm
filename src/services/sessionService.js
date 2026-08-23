@@ -279,7 +279,7 @@ export function subscribeAreas(sessionId, callback) {
  */
 export async function addArea(sessionId, data) {
   const areasCol = collection(db, SESSIONS_COLLECTION, sessionId, AREAS_SUBCOLLECTION);
-  await addDoc(areasCol, {
+  const ref = await addDoc(areasCol, {
     name: data.name || "Área",
     type: data.type || "freeform",
     cells: data.cells || [],
@@ -290,6 +290,7 @@ export async function addArea(sessionId, data) {
     zoneEffect: data.zoneEffect || null,
     kind: data.kind || "area",
   });
+  return ref.id;
 }
 
 export async function updateArea(sessionId, areaId, data) {

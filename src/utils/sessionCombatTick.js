@@ -5,6 +5,7 @@ import {
 } from "./rampageRules";
 import { advanceTurn, getCurrentParticipant, normalizeRoundTracker } from "./roundTracker";
 import { fetchCharacterSheet, writeCharacterSheet } from "../services/characterPatchService";
+import { canUseKakaRays, decayRaysOnRound } from "./userPersonalizations";
 
 /**
  * Resolve personagem da entrada da iniciativa a partir dos tokens.
@@ -78,17 +79,38 @@ export async function processTurnAdvance({
 
   if (wrappedRound && direction > 0) {
     const seen = new Set();
-    for (const p of after.turnOrder) {
-      const target = resolveParticipantCharacter(p, tokens, gmUsername);
-      if (!target?.ownerUsername || !target.characterId) continue;
+    const processRoundForTarget = async (target) => {
+      if (!target?.ownerUsername || !target.characterId) return;
       const key = `${target.ownerUsername}/${target.characterId}`;
-      if (seen.has(key)) continue;
+      if (seen.has(key)) return;
       seen.add(key);
-      const sheet = await fetchCharacterSheet(target.ownerUsername, target.characterId);
-      if (!sheet) continue;
+      let sheet = await fetchCharacterSheet(target.ownerUsername, target.characterId);
+      if (!sheet) return;
       const { sheet: next, logs } = await applyTickModes(sheet, ["round"], false);
-      await writeCharacterSheet(target.ownerUsername, target.characterId, next);
+      sheet = next;
+      if (canUseKakaRays(target.ownerUsername, sheet)) {
+        const decayed = decayRaysOnRound(sheet);
+        if (decayed.changed) {
+          sheet = decayed.sheet;
+          logs.push("Raios −1 (rodada)");
+        }
+      }
+      await writeCharacterSheet(target.ownerUsername, target.characterId, sheet);
       if (logs.length) combatLogs.push({ who: target.label, logs, kind: "round" });
+    };
+
+    for (const p of after.turnOrder) {
+      await processRoundForTarget(resolveParticipantCharacter(p, tokens, gmUsername));
+    }
+    // Garante decay do Kaká mesmo se ainda não estiver na ordem de turno
+    for (const token of tokens || []) {
+      if (!token?.ownerUsername || !token.characterId) continue;
+      if (token.ownerUsername === gmUsername) continue;
+      await processRoundForTarget({
+        ownerUsername: token.ownerUsername,
+        characterId: token.characterId,
+        label: token.characterName || token.ownerUsername,
+      });
     }
   }
 

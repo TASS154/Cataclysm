@@ -20,7 +20,7 @@ import {
 import NotesPanel from "./NotesPanel";
 import SessionGmPanel, { SessionHandoutOverlay, SessionPublicReminder } from "./SessionGmPanel";
 import SessionBroadcastAudio from "./SessionBroadcastAudio";
-import { formatTurnBadge, getCurrentParticipant, normalizeRoundTracker } from "../utils/roundTracker";
+import { getCurrentParticipant, normalizeRoundTracker } from "../utils/roundTracker";
 import {
   cellsForCircle,
   cellsForDiameter,
@@ -28,7 +28,12 @@ import {
   tokenFootprint,
   computeVisibleCells,
 } from "../utils/mapAreas";
-import { reevaluateZoneEffectsForToken } from "../utils/zoneEffects";
+import { reevaluateZoneEffectsForToken, applyZoneEffectToTokensInArea } from "../utils/zoneEffects";
+import {
+  canUseMakuCircle,
+  MAKU_CIRCLE_DEFAULT_COLOR,
+  MAKU_CIRCLE_NAME,
+} from "../utils/userPersonalizations";
 import "./MapView.css";
 
 const MAX_CELL_PX = 36;
@@ -88,7 +93,10 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   const [areaZoneTick, setAreaZoneTick] = useState("turnEnd");
   const [areaZoneDamage, setAreaZoneDamage] = useState("0");
   const [areaZoneName, setAreaZoneName] = useState("");
+  const [areaExcludeTokenIds, setAreaExcludeTokenIds] = useState([]);
   const [areaKind, setAreaKind] = useState("area");
+  const [makuCircleMode, setMakuCircleMode] = useState(false);
+  const [makuCircleRadius, setMakuCircleRadius] = useState("6");
   const [fogMode, setFogMode] = useState(false);
   const [draggingAreaId, setDraggingAreaId] = useState(null);
   const areaDragStartRef = useRef(null);
@@ -131,6 +139,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
   }, [sessionId, session]);
 
   const isGM = session && username === session.gmUsername;
+  const canMakuCircle = canUseMakuCircle(username);
   const currentMapIndex = Number(session?.currentMapIndex) || 0;
   const visibleTokens = tokens.filter(
     (t) => (Number(t.mapIndex) || 0) === currentMapIndex
@@ -245,8 +254,28 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     return { x: cellX, y: cellY };
   };
 
+  const placeMakuCircle = async (centerCell) => {
+    if (!sessionId || !session || !canMakuCircle || !centerCell) return;
+    const gridW = session.mapWidth || 20;
+    const gridH = session.mapHeight || 15;
+    const r = Math.max(0.5, Number(makuCircleRadius) || 6);
+    const built = cellsForCircle(centerCell, r, gridW, gridH);
+    await addArea(sessionId, {
+      name: MAKU_CIRCLE_NAME,
+      type: "circleRadius",
+      cells: built.cells,
+      color: MAKU_CIRCLE_DEFAULT_COLOR,
+      center: built.center,
+      radius: built.radius,
+      anchoredTo: null,
+      zoneEffect: null,
+      kind: "area",
+    });
+    setMakuCircleMode(false);
+  };
+
   const handleMapClick = async (e) => {
-    if (!rulerMode && !areaTool && !fogMode && (e.target.closest(".map-token") || e.target.closest(".map-token-menu"))) return;
+    if (!rulerMode && !areaTool && !makuCircleMode && !fogMode && (e.target.closest(".map-token") || e.target.closest(".map-token-menu"))) return;
     if (rulerMode) {
       const cell = getCellFromEvent(e);
       if (!cell) return;
@@ -258,6 +287,10 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     if (!cell) return;
     const gridW = session.mapWidth || 20;
     const gridH = session.mapHeight || 15;
+    if (makuCircleMode && canMakuCircle) {
+      await placeMakuCircle(cell);
+      return;
+    }
     if (fogMode && isGM) {
       const fog = Array.isArray(session.fogCells) ? [...session.fogCells] : [];
       const idx = fog.findIndex((c) => c.x === cell.x && c.y === cell.y);
@@ -266,7 +299,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       await updateFogCells(sessionId, fog);
       return;
     }
-    if (!areaTool) return;
+    if (!areaTool || !isGM) return;
     if (areaTool === "freeform") {
       setAreaDraft((prev) => {
         const has = prev.some((c) => c.x === cell.x && c.y === cell.y);
@@ -373,12 +406,22 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
     e.preventDefault();
     if (areaDraft.length === 0) return;
     const geom = areaGeomRef.current || {};
+    const excludeTokenIds = Array.isArray(areaExcludeTokenIds) ? [...areaExcludeTokenIds] : [];
+    const excludeOwnerUsernames = [
+      ...new Set(
+        visibleTokens
+          .filter((t) => excludeTokenIds.includes(t.id) && t.ownerUsername)
+          .map((t) => t.ownerUsername)
+      ),
+    ];
     let zoneEffect = null;
     if (areaZoneMode === "continuous") {
       zoneEffect = {
         mode: "continuous",
         continuous: { kind: "damage", amount: Number(areaZoneDamage) || 0 },
         statusTemplate: null,
+        excludeTokenIds,
+        excludeOwnerUsernames,
       };
     } else if (areaZoneMode === "status") {
       zoneEffect = {
@@ -390,10 +433,12 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
           rounds: 0,
           tickMode: areaZoneTick,
         },
+        excludeTokenIds,
+        excludeOwnerUsernames,
       };
     }
     const kind = ["wall", "table", "prop"].includes(areaTool) ? areaTool : areaKind || "area";
-    await addArea(sessionId, {
+    const areaPayload = {
       name: areaName || (kind === "wall" ? "Parede" : "Área"),
       type: areaTool,
       cells: areaDraft,
@@ -403,13 +448,24 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       anchoredTo: geom.anchoredTo || null,
       zoneEffect,
       kind,
-    });
+    };
+    const newId = await addArea(sessionId, areaPayload);
+    if (zoneEffect && newId) {
+      const created = { ...areaPayload, id: newId };
+      await applyZoneEffectToTokensInArea({
+        area: created,
+        tokens: visibleTokens,
+        allAreas: [...areas, created],
+        gmUsername: session.gmUsername,
+      }).catch(console.error);
+    }
     setAreaDraft([]);
     setAreaName("");
     setAreaTool(null);
     setAreaZoneMode("none");
     setAreaZoneDamage("0");
     setAreaZoneName("");
+    setAreaExcludeTokenIds([]);
     setShowAreaNameModal(false);
     coneDraftRef.current = null;
     areaGeomRef.current = null;
@@ -761,6 +817,7 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
             setShowAreaNameModal(false);
             setAreaDraft([]);
             setAreaName("");
+            setAreaExcludeTokenIds([]);
             coneDraftRef.current = null;
           }}
         >
@@ -811,10 +868,38 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
                       </div>
                     </>
                   )}
+                  <div className="form-group">
+                    <label>Exceções (não aplicar a)</label>
+                    <div className="map-area-exclude-list">
+                      {visibleTokens.length === 0 && (
+                        <span className="muted small">Nenhum token no mapa.</span>
+                      )}
+                      {visibleTokens.map((t) => {
+                        const checked = areaExcludeTokenIds.includes(t.id);
+                        return (
+                          <label key={t.id} className="map-area-exclude-item">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setAreaExcludeTokenIds((prev) =>
+                                  checked ? prev.filter((id) => id !== t.id) : [...prev, t.id]
+                                );
+                              }}
+                            />
+                            <span>{t.characterName || t.id}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="muted small" style={{ marginTop: 6 }}>
+                      Marcados ficam de fora do efeito. Demais na área recebem ao salvar.
+                    </p>
+                  </div>
                 </>
               )}
               <button type="submit" className="btn-primary fullwidth">Salvar área</button>
-              <button type="button" className="btn-secondary fullwidth" style={{ marginTop: 8 }} onClick={() => { setShowAreaNameModal(false); setAreaDraft([]); setAreaName(""); coneDraftRef.current = null; }}>Cancelar</button>
+              <button type="button" className="btn-secondary fullwidth" style={{ marginTop: 8 }} onClick={() => { setShowAreaNameModal(false); setAreaDraft([]); setAreaName(""); setAreaExcludeTokenIds([]); coneDraftRef.current = null; }}>Cancelar</button>
             </form>
           </div>
         </div>
@@ -898,15 +983,26 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
       <div className="map-view-header">
         <h2>{session.name || "Mapa"}</h2>
         <span className="map-view-role">{isGM ? "Mestre" : "Jogador"}</span>
-        {session.roundTracker && (
-          <span
-            className={`map-round-badge small ${isMyTurn ? "map-round-badge--your-turn" : "muted"}`}
-            title={isMyTurn ? "Sua vez!" : undefined}
-          >
-            {formatTurnBadge(roundTracker)}
-            {isMyTurn && " ★"}
+        <div
+          className={`map-turn-banner ${isMyTurn ? "map-turn-banner--yours" : ""}`}
+          title="Rodada e turno atuais (visível para todos)"
+        >
+          <span className="map-turn-banner-round">
+            Rodada {roundTracker.currentRound}
           </span>
-        )}
+          <span className="map-turn-banner-sep">·</span>
+          <span className="map-turn-banner-turn">
+            {currentTurnPlayer
+              ? `Turno: ${currentTurnPlayer.label}`
+              : "Turno: — (sincronize a ordem)"}
+          </span>
+          {roundTracker.turnOrder?.length > 0 && (
+            <span className="map-turn-banner-idx muted small">
+              ({roundTracker.currentTurnIndex + 1}/{roundTracker.turnOrder.length})
+            </span>
+          )}
+          {isMyTurn && <span className="map-turn-banner-you">Sua vez</span>}
+        </div>
         <SessionGmPanel
           session={session}
           sessionId={sessionId}
@@ -938,6 +1034,46 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
           >
             + Meu token
           </button>
+        )}
+        {canMakuCircle && (
+          <>
+            <button
+              type="button"
+              className={`btn-primary ${makuCircleMode ? "map-ruler-btn--active" : ""}`}
+              onClick={() => {
+                setMakuCircleMode((v) => !v);
+                setAreaTool(null);
+                setRulerMode(false);
+              }}
+              title="Invocar Círculo do Caos no mapa (escolha o raio e clique)"
+            >
+              {makuCircleMode ? "Clique no mapa…" : "Invocar círculo"}
+            </button>
+            <input
+              type="number"
+              className="input-login"
+              style={{ width: 64 }}
+              min={1}
+              max={30}
+              value={makuCircleRadius}
+              onChange={(e) => setMakuCircleRadius(e.target.value)}
+              title="Raio do círculo (metros/células)"
+            />
+            {myTokens[0] && (
+              <button
+                type="button"
+                className="btn-outline"
+                title="Centrar no seu token"
+                onClick={() => {
+                  const t = myTokens[0];
+                  const fp = tokenFootprint(t);
+                  placeMakuCircle({ x: Math.round(fp.cx), y: Math.round(fp.cy) });
+                }}
+              >
+                No meu token
+              </button>
+            )}
+          </>
         )}
         {isGM && (
           <>
@@ -989,15 +1125,24 @@ export default function MapView({ embedded = false, onBack, sessionId: sessionId
             </button>
           </>
         )}
-        {isGM && areas.length > 0 && (
+        {(isGM || canMakuCircle) && areas.length > 0 && (
           <div className="map-areas-list">
-            {areas.map((a) => (
+            {areas
+              .filter((a) => isGM || a.name === MAKU_CIRCLE_NAME)
+              .map((a) => (
               <span key={a.id} className="map-area-chip">
                 {a.name}{a.kind && a.kind !== "area" ? ` [${a.kind}]` : ""}
-                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, -1, 0)} title="←">←</button>
-                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 1, 0)} title="→">→</button>
-                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 0, -1)} title="↑">↑</button>
-                <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 0, 1)} title="↓">↓</button>
+                {a.zoneEffect?.excludeTokenIds?.length > 0 && (
+                  <span className="muted small" title="Com exceções">*</span>
+                )}
+                {isGM && (
+                  <>
+                    <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, -1, 0)} title="←">←</button>
+                    <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 1, 0)} title="→">→</button>
+                    <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 0, -1)} title="↑">↑</button>
+                    <button type="button" className="btn-outline small" onClick={() => nudgeArea(a, 0, 1)} title="↓">↓</button>
+                  </>
+                )}
                 <button type="button" className="btn-danger small" onClick={() => handleRemoveArea(a.id)} title="Remover">×</button>
               </span>
             ))}

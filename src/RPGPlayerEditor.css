@@ -629,6 +629,7 @@ button { cursor: pointer; border: none; }
 .bar-purple { background: #a78bfa; }
 .bar-red { background: #f87171; }
 .bar-yellow { background: #fbbf24; }
+.bar-cyan { background: #22d3ee; }
 
 @keyframes pulse {
   0% { opacity: 1; }

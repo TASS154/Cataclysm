@@ -4,6 +4,41 @@ import { fetchCharacterSheet, writeCharacterSheet } from "../services/characterP
 
 const CONT_PREFIX = "zone-cont:";
 
+function isTokenExcludedFromArea(area, token) {
+  const ze = area?.zoneEffect;
+  if (!ze) return false;
+  const exclTokens = Array.isArray(ze.excludeTokenIds) ? ze.excludeTokenIds : [];
+  const exclOwners = Array.isArray(ze.excludeOwnerUsernames) ? ze.excludeOwnerUsernames : [];
+  if (token?.id && exclTokens.includes(token.id)) return true;
+  if (token?.ownerUsername && exclOwners.includes(token.ownerUsername)) return true;
+  return false;
+}
+
+/**
+ * Aplica efeito de zona a todos os tokens dentro da área (respeitando exclusões).
+ * `allAreas` deve incluir a área alvo + demais áreas ativas (para não apagar outros contínuos).
+ */
+export async function applyZoneEffectToTokensInArea({ area, tokens, allAreas, gmUsername }) {
+  if (!area?.zoneEffect) return;
+  const list =
+    Array.isArray(allAreas) && allAreas.length
+      ? allAreas.some((a) => a.id === area.id)
+        ? allAreas
+        : [...allAreas, area]
+      : [area];
+  for (const token of tokens || []) {
+    if (!token?.ownerUsername || !token.characterId) continue;
+    if (token.ownerUsername === gmUsername && String(token.characterId).startsWith("npc-")) continue;
+    if (isTokenExcludedFromArea(area, token)) continue;
+    if (!cellsInArea(area, token)) continue;
+    await reevaluateZoneEffectsForToken({
+      token,
+      areas: list,
+      gmUsername,
+    });
+  }
+}
+
 /**
  * Reavalia efeitos de zona após um token se mover.
  * continuous: aplica enquanto dentro; remove ao sair.
@@ -21,7 +56,7 @@ export async function reevaluateZoneEffectsForToken({ token, areas, gmUsername }
   let effects = (s.effects || []).map((e) => normalizeEffect(e));
   const insideIds = new Set(
     (areas || [])
-      .filter((a) => a.zoneEffect && cellsInArea(a, token))
+      .filter((a) => a.zoneEffect && cellsInArea(a, token) && !isTokenExcludedFromArea(a, token))
       .map((a) => a.id)
   );
 

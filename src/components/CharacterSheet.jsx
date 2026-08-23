@@ -12,6 +12,13 @@ import {
   clearOverheatIfRecovered,
   normalizeEffect,
 } from "../utils/rampageRules";
+import {
+  canUseKakaRays,
+  getRayCount,
+  addRaysSpendingPe,
+  removeRays,
+  KAKA_RAY_PE_COST,
+} from "../utils/userPersonalizations";
 import "./CharacterSheet.css";
 
 const MAX_GALLERY_IMAGES = 24;
@@ -460,6 +467,27 @@ export default function CharacterSheet({
     setTimeout(() => onSave(), 0);
   };
 
+  const showKakaRays = canUseKakaRays(username, sheet);
+
+  const applyRayDelta = (sign) => {
+    const raw = Number(barStep);
+    const amount = Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 1;
+    lastDeltaBarRef.current = "rays";
+    if (sign > 0) {
+      const result = addRaysSpendingPe(sheet, amount);
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      onUpdateSheet(result.sheet);
+      setTimeout(() => onSave(), 0);
+      return;
+    }
+    const next = removeRays(sheet, amount);
+    onUpdateSheet(next);
+    setTimeout(() => onSave(), 0);
+  };
+
   const filteredAbilities = sheet.abilities.filter(a => {
     const matchesType = a.type === activeAbilityTab;
     if (!matchesType) return false;
@@ -682,7 +710,11 @@ export default function CharacterSheet({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      applyBarDelta(lastDeltaBarRef.current || "hp", -1);
+                      if (lastDeltaBarRef.current === "rays" && showKakaRays) {
+                        applyRayDelta(-1);
+                      } else {
+                        applyBarDelta(lastDeltaBarRef.current || "hp", -1);
+                      }
                     }
                   }}
                   className="input-number bar-step-input"
@@ -822,6 +854,54 @@ export default function CharacterSheet({
                   </div>
                 );
               })}
+              {showKakaRays && (
+                <div className="bar-row bar-row--rays">
+                  <div className="bar-top">
+                    <div className="bar-label" title={`+ gasta ${KAKA_RAY_PE_COST} PE por raio · −1 por rodada`}>
+                      Raios
+                    </div>
+                    <div className="bar-inputs">
+                      <input
+                        type="number"
+                        value={getRayCount(sheet)}
+                        min={0}
+                        onChange={(e) => {
+                          const s = JSON.parse(JSON.stringify(sheet));
+                          s.rays = Math.max(0, e.target.value === "" ? 0 : Number(e.target.value));
+                          onUpdateSheet(s);
+                        }}
+                        onBlur={onSave}
+                        className="input-number bar-input"
+                      />
+                      <span className="bar-separator muted small">PE {KAKA_RAY_PE_COST}/+</span>
+                      <div className="bar-delta-actions">
+                        <button
+                          type="button"
+                          className="bar-delta-btn"
+                          title="Remover raios (sem reembolso de PE)"
+                          onClick={() => applyRayDelta(-1)}
+                        >
+                          −
+                        </button>
+                        <button
+                          type="button"
+                          className="bar-delta-btn bar-delta-btn--plus"
+                          title={`Adicionar raios (−${KAKA_RAY_PE_COST} PE cada)`}
+                          onClick={() => applyRayDelta(1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bar-fill bar-cyan" style={{ width: `${Math.min(getRayCount(sheet) * 5, 100)}%` }}>
+                    <div className="bar-fill-inner" />
+                  </div>
+                  <div className="muted small" style={{ marginTop: 4 }}>
+                    + gasta {KAKA_RAY_PE_COST} PE por raio · −1 automático no avanço de rodada
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="panel stats-panel">
