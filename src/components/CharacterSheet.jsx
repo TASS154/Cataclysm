@@ -6,6 +6,7 @@ import { blobToCompressedDataUrl } from "../utils/imageCompress";
 import {
   STAT_LABELS,
   ALL_STATS,
+  CORE_STATS,
   computeCA,
   canSpendResource,
   syncOverheatFlags,
@@ -56,7 +57,8 @@ export default function CharacterSheet({
   username,
   characterId,
   onRequestRest,
-  onActivateFocus
+  onActivateFocus,
+  onUndoLevelUp,
 }) {
   const effectiveStats = effectiveStatsProp || sheet.stats || {};
   const [activeTab, setActiveTab] = useState(() => {
@@ -76,6 +78,8 @@ export default function CharacterSheet({
     field: ""
   });
   const [newTrait, setNewTrait] = useState({ name: "", effect: "" });
+  const [newTraitExpanded, setNewTraitExpanded] = useState(false);
+  const [expandedTraitIds, setExpandedTraitIds] = useState([]);
   const [newEffect, setNewEffect] = useState({
     name: "",
     description: "",
@@ -468,6 +472,50 @@ export default function CharacterSheet({
   };
 
   const showKakaRays = canUseKakaRays(username, sheet);
+  const raysBeforeRef = useRef(0);
+
+  const commitRaysFromInput = (rawValue) => {
+    const desired = Math.max(
+      0,
+      Math.floor(rawValue === "" || rawValue == null ? 0 : Number(rawValue) || 0)
+    );
+    const prev = Number(raysBeforeRef.current) || 0;
+    const delta = desired - prev;
+    if (delta > 0) {
+      const base = JSON.parse(JSON.stringify(sheet));
+      base.rays = prev;
+      const result = addRaysSpendingPe(base, delta);
+      if (!result.ok) {
+        const pe = Number(sheet.bars?.inata) || 0;
+        const maxAffordable = Math.floor(pe / KAKA_RAY_PE_COST);
+        if (maxAffordable > 0) {
+          const partial = addRaysSpendingPe(base, maxAffordable);
+          alert(
+            `${result.error} Adicionados ${maxAffordable} raio(s) (máximo possível).`
+          );
+          onUpdateSheet(partial.sheet);
+        } else {
+          alert(result.error);
+          const s = JSON.parse(JSON.stringify(sheet));
+          s.rays = prev;
+          onUpdateSheet(s);
+        }
+        setTimeout(() => onSave(), 0);
+        return;
+      }
+      onUpdateSheet(result.sheet);
+      setTimeout(() => onSave(), 0);
+      return;
+    }
+    if (desired !== getRayCount(sheet)) {
+      const s = JSON.parse(JSON.stringify(sheet));
+      s.rays = desired;
+      onUpdateSheet(s);
+      setTimeout(() => onSave(), 0);
+      return;
+    }
+    onSave();
+  };
 
   const applyRayDelta = (sign) => {
     const raw = Number(barStep);
@@ -514,7 +562,8 @@ export default function CharacterSheet({
     age: "",
     height: "",
     weight: "",
-    dominantField: ""
+    dominantField: "",
+    initialStat: "",
   };
 
   return (
@@ -552,6 +601,21 @@ export default function CharacterSheet({
               </div>
             </div>
             <div className="character-info-form">
+              <div className="form-group">
+                <label>URL da imagem</label>
+                <input
+                  type="text"
+                  value={sheet.image || ""}
+                  onChange={(e) => {
+                    const s = JSON.parse(JSON.stringify(sheet));
+                    s.image = e.target.value;
+                    onUpdateSheet(s);
+                  }}
+                  onBlur={onSave}
+                  className="input-login"
+                  placeholder="https://... ou data URL"
+                />
+              </div>
               <div className="form-group">
                 <label>Classe</label>
                 <input
@@ -619,6 +683,73 @@ export default function CharacterSheet({
                   ))}
                 </select>
                 <div className="muted small" style={{ marginTop: "4px" }}>Magias do mesmo campo custam 30% menos (40% ao nível 13, 50% ao nível 17).</div>
+              </div>
+              <div className="form-group">
+                <label>Atributo inicial</label>
+                <select
+                  value={characterInfo.initialStat || ""}
+                  onChange={(e) => {
+                    const s = JSON.parse(JSON.stringify(sheet));
+                    if (!s.characterInfo) s.characterInfo = {};
+                    s.characterInfo.initialStat = e.target.value;
+                    onUpdateSheet(s);
+                  }}
+                  onBlur={onSave}
+                  className="input-login"
+                >
+                  <option value="">Não definido</option>
+                  {CORE_STATS.map((k) => (
+                    <option key={k} value={k}>{STAT_LABELS[k] || k.toUpperCase()}</option>
+                  ))}
+                </select>
+                <div className="muted small" style={{ marginTop: "4px" }}>
+                  No level-up, recebe +1 automático neste atributo (além dos 3 pontos livres).
+                  {Number(sheet.level) >= 10 && !(characterInfo.initialStat)
+                    ? " Fichas em campanha (nível 10+) podem definir isso no ritual."
+                    : ""}
+                </div>
+              </div>
+              <div className="form-group" style={{ marginTop: 8 }}>
+                <label>Histórico de level-up</label>
+                {(sheet.levelUpHistory || []).length === 0 ? (
+                  <div className="muted small">Nenhum level-up registrado ainda.</div>
+                ) : (
+                  <ul className="levelup-history-list">
+                    {[...(sheet.levelUpHistory || [])].slice().reverse().map((entry, idx) => {
+                      const deltas = entry.deltas || {};
+                      const deltaStr = Object.entries(deltas)
+                        .filter(([, v]) => Number(v) > 0)
+                        .map(([k, v]) => `${(STAT_LABELS[k] || k)}+${v}`)
+                        .join(", ");
+                      const rollsStr = (entry.rolls || [])
+                        .map((r) => r.value)
+                        .join("+");
+                      return (
+                        <li key={`${entry.at}-${idx}`} className="levelup-history-item">
+                          <strong>
+                            {entry.fromLevel} → {entry.toLevel}
+                          </strong>
+                          <span className="muted">
+                            {" "}
+                            · PV +{entry.gain}
+                            {rollsStr ? ` (${rollsStr})` : ""}
+                            {deltaStr ? ` · ${deltaStr}` : ""}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <button
+                  type="button"
+                  className="btn-outline small"
+                  style={{ marginTop: 8 }}
+                  disabled={!(sheet.levelUpHistory || []).length}
+                  onClick={() => onUndoLevelUp && onUndoLevelUp()}
+                  title="Desfaz o último level-up (pontos, PV e nível)"
+                >
+                  Desfazer último level-up
+                </button>
               </div>
               <div className="form-group">
                 <label>Alinhamento</label>
@@ -865,12 +996,15 @@ export default function CharacterSheet({
                         type="number"
                         value={getRayCount(sheet)}
                         min={0}
+                        onFocus={() => {
+                          raysBeforeRef.current = getRayCount(sheet);
+                        }}
                         onChange={(e) => {
                           const s = JSON.parse(JSON.stringify(sheet));
                           s.rays = Math.max(0, e.target.value === "" ? 0 : Number(e.target.value));
                           onUpdateSheet(s);
                         }}
-                        onBlur={onSave}
+                        onBlur={(e) => commitRaysFromInput(e.target.value)}
                         className="input-number bar-input"
                       />
                       <span className="bar-separator muted small">PE {KAKA_RAY_PE_COST}/+</span>
@@ -1286,38 +1420,58 @@ export default function CharacterSheet({
               </button>
             </div>
             <h3>Traços</h3>
-            <div className="trait-add">
-              <input 
-                type="text"
-                value={newTrait.name}
-                onChange={(e) => setNewTrait({ ...newTrait, name: e.target.value })}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter" && newTrait.name.trim()) {
-                    handleAddTrait();
-                  }
-                }}
-                placeholder="Nome do traço" 
-                className="input-new" 
-              />
-              <input 
-                type="text"
-                value={newTrait.effect}
-                onChange={(e) => setNewTrait({ ...newTrait, effect: e.target.value })}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter" && newTrait.name.trim()) {
-                    handleAddTrait();
-                  }
-                }}
-                placeholder="Efeito" 
-                className="input-new" 
-              />
-              <button
-                className="btn-primary small"
-                onClick={handleAddTrait}
-                disabled={!newTrait.name.trim()}
-              >
-                +
-              </button>
+            <div className={`trait-add ${newTraitExpanded ? "is-expanded" : ""}`}>
+              <div className="trait-add-row">
+                <input 
+                  type="text"
+                  value={newTrait.name}
+                  onChange={(e) => setNewTrait({ ...newTrait, name: e.target.value })}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && newTrait.name.trim() && !newTraitExpanded) {
+                      handleAddTrait();
+                    }
+                  }}
+                  placeholder="Nome do traço" 
+                  className="input-new" 
+                />
+                <button
+                  type="button"
+                  className="btn-outline small"
+                  onClick={() => setNewTraitExpanded((v) => !v)}
+                  title={newTraitExpanded ? "Recolher campos" : "Expandir campos"}
+                >
+                  {newTraitExpanded ? "▾" : "▸"}
+                </button>
+                <button
+                  className="btn-primary small"
+                  onClick={handleAddTrait}
+                  disabled={!newTrait.name.trim()}
+                >
+                  +
+                </button>
+              </div>
+              {newTraitExpanded ? (
+                <textarea
+                  value={newTrait.effect}
+                  onChange={(e) => setNewTrait({ ...newTrait, effect: e.target.value })}
+                  placeholder="Efeito"
+                  className="input-new trait-edit-effect--expanded"
+                  rows={4}
+                />
+              ) : (
+                <input 
+                  type="text"
+                  value={newTrait.effect}
+                  onChange={(e) => setNewTrait({ ...newTrait, effect: e.target.value })}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && newTrait.name.trim()) {
+                      handleAddTrait();
+                    }
+                  }}
+                  placeholder="Efeito" 
+                  className="input-new" 
+                />
+              )}
             </div>
             <ul className="trait-list">
               {(sheet.traits || [])
@@ -1329,10 +1483,72 @@ export default function CharacterSheet({
                     (tr.effect || "").toLowerCase().includes(q)
                   );
                 })
-                .map((tr) => (
-                <li key={tr.id} className="trait-item">
-                  <div>
-                    <strong>{tr.name}</strong>: {tr.effect}
+                .map((tr) => {
+                  const expanded = expandedTraitIds.includes(tr.id);
+                  return (
+                <li key={tr.id} className={`trait-item ${expanded ? "is-expanded" : ""}`}>
+                  <div className="trait-edit">
+                    <div className="trait-edit-toolbar">
+                      <button
+                        type="button"
+                        className="btn-outline small"
+                        onClick={() =>
+                          setExpandedTraitIds((prev) =>
+                            prev.includes(tr.id)
+                              ? prev.filter((id) => id !== tr.id)
+                              : [...prev, tr.id]
+                          )
+                        }
+                        title={expanded ? "Recolher" : "Expandir"}
+                      >
+                        {expanded ? "▾" : "▸"}
+                      </button>
+                      <input
+                        type="text"
+                        className="input-new trait-edit-name"
+                        value={tr.name || ""}
+                        placeholder="Nome do traço"
+                        onChange={(e) => {
+                          const s = JSON.parse(JSON.stringify(sheet));
+                          s.traits = (s.traits || []).map((t) =>
+                            t.id === tr.id ? { ...t, name: e.target.value } : t
+                          );
+                          onUpdateSheet(s);
+                        }}
+                        onBlur={onSave}
+                      />
+                    </div>
+                    {expanded ? (
+                      <textarea
+                        className="input-new trait-edit-effect trait-edit-effect--expanded"
+                        value={tr.effect || ""}
+                        placeholder="Efeito"
+                        rows={5}
+                        onChange={(e) => {
+                          const s = JSON.parse(JSON.stringify(sheet));
+                          s.traits = (s.traits || []).map((t) =>
+                            t.id === tr.id ? { ...t, effect: e.target.value } : t
+                          );
+                          onUpdateSheet(s);
+                        }}
+                        onBlur={onSave}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        className="input-new trait-edit-effect"
+                        value={tr.effect || ""}
+                        placeholder="Efeito"
+                        onChange={(e) => {
+                          const s = JSON.parse(JSON.stringify(sheet));
+                          s.traits = (s.traits || []).map((t) =>
+                            t.id === tr.id ? { ...t, effect: e.target.value } : t
+                          );
+                          onUpdateSheet(s);
+                        }}
+                        onBlur={onSave}
+                      />
+                    )}
                   </div>
                   <button
                     className="link-danger"
@@ -1346,7 +1562,8 @@ export default function CharacterSheet({
                     ×
                   </button>
                 </li>
-              ))}
+                  );
+                })}
             </ul>
 
             <h3 className="mt">Condições</h3>

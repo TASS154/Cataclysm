@@ -673,6 +673,101 @@
   justify-content: flex-end;
 }
 
+.trait-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.trait-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.trait-add-row .input-new {
+  flex: 1;
+  min-width: 0;
+}
+
+.trait-add.is-expanded {
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+}
+
+.trait-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trait-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.trait-edit {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.trait-edit-name,
+.trait-edit-effect {
+  width: 100%;
+}
+
+.trait-edit-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.trait-edit-toolbar .trait-edit-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.trait-item.is-expanded .trait-edit {
+  gap: 8px;
+}
+
+.trait-edit-effect--expanded {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.levelup-history-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.levelup-history-item {
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+}
+
 @media (max-width: 768px) {
   .add-ability-form .form-row {
     flex-direction: column;

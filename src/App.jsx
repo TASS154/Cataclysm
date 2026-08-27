@@ -22,15 +22,18 @@ import RulesPage from "./pages/RulesPage";
 import NotesPage from "./pages/NotesPage";
 import GmLibraryPage from "./pages/GmLibraryPage";
 import ImportExportModal from "./components/ImportExportModal";
+import LevelUpRitual from "./components/LevelUpRitual";
+import { normalizeAbilities, normalizeTraits } from "./utils/sheetIO";
 import CreateSessionWizard from "./components/CreateSessionWizard";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ChangelogModal from "./components/ChangelogModal";
 import { hasUnreadChangelog } from "./data/changelogData";
 import { UserProvider } from "./context/UserContext";
-import { createSession } from "./services/sessionService";
+import { createSession, purgeExpiredSessions } from "./services/sessionService";
 import { isMestreAccount } from "./utils/mestreAccount";
 import {
   EMPTY_STATS,
+  CORE_STATS,
   migrateStats,
   applyShortRestBars,
   getBarMaxes as rampageGetBarMaxes,
@@ -39,9 +42,13 @@ import {
   syncOverheatFlags,
   normalizeOverheat,
   applyLevelUpHp,
+  undoLastLevelUp,
+  needsInitialStatBeforeLevelUp,
   normalizeEffect,
 } from "./utils/rampageRules";
+import { buildExportPayload } from "./utils/sheetIO";
 import "./RPGPlayerEditor.css";
+import "./components/LevelUpRitual.css";
 
 const emptySheet = {
   name: "New Character",
@@ -59,7 +66,8 @@ const emptySheet = {
     age: "",
     height: "",
     weight: "",
-    dominantField: ""
+    dominantField: "",
+    initialStat: "", // fis | des | men | car — +1 automático no level-up
   },
   abilities: [],
   inventory: [],
@@ -90,6 +98,7 @@ const emptySheet = {
   focusType: "inspiration", // "inspiration" | "certainty"
   focusPoints: 0,
   pendingRollPower: null, // null | "inspiration" | "certainty"
+  levelUpHistory: [],
   createdAt: Date.now(),
   owner: "",
 };
@@ -139,11 +148,8 @@ function buildUpdatedSheet(found, emptySheet) {
       weapons: Array.isArray(found.equipment?.weapons) ? found.equipment.weapons : [],
       carried: Array.isArray(found.equipment?.carried) ? found.equipment.carried : [],
     },
-    abilities: (found.abilities || []).map(ability => ({
-      ...ability,
-      cost: typeof ability.cost === "number" ? ability.cost : (typeof ability.cost === "string" ? (ability.cost === "" ? 0 : Number(ability.cost) || 0) : 0)
-    })),
-    traits: found.traits || [],
+    abilities: normalizeAbilities(found.abilities || []),
+    traits: normalizeTraits(found.traits || []),
     documents: found.documents || [],
     galleryImages: Array.isArray(found.galleryImages) ? found.galleryImages : [],
     lore: found.lore != null ? found.lore : "",
@@ -152,6 +158,7 @@ function buildUpdatedSheet(found, emptySheet) {
     focusType: found.focusType === "certainty" ? "certainty" : "inspiration",
     focusPoints: Number(found.focusPoints) || 0,
     pendingRollPower: found.pendingRollPower || null,
+    levelUpHistory: Array.isArray(found.levelUpHistory) ? found.levelUpHistory : [],
     effects: (found.effects || []).map((effect) => normalizeEffect(effect)),
   };
 }
@@ -247,11 +254,31 @@ function EditorLayout({
   onOpenImportExport,
   onOpenSessionWizard,
   onCloseSessionWizard,
+  levelUpPulse,
+  onRequestLevelUp,
+  onUndoLevelUp,
+  onCopySheet,
 }) {
   const effectiveStats = useMemo(() => getEffectiveStats(sheet), [sheet]);
   const isMobile = useIsMobile(980);
   const [mobileContentTab, setMobileContentTab] = useState("sheet");
+  const [sidebarMenuOpen, setSidebarMenuOpen] = useState(false);
+  const [copyFlash, setCopyFlash] = useState("");
+  const [levelUpAmount, setLevelUpAmount] = useState(1);
+  const [levelUpOpen, setLevelUpOpen] = useState(false);
   const canUseMestreTools = isMestreAccount(username);
+
+  const handleCopyClick = async () => {
+    if (!onCopySheet) return;
+    try {
+      await onCopySheet();
+      setCopyFlash("Copiado!");
+      setTimeout(() => setCopyFlash(""), 1800);
+    } catch (err) {
+      alert("Erro ao copiar: " + (err.message || err));
+    }
+  };
+
   return (
     <>
       <div className="container">
@@ -278,85 +305,103 @@ function EditorLayout({
                 >
                   + Nova ficha
                 </button>
-              </div>
-              <div className="nav-group">
-                <span className="nav-group-label">Sessão</span>
-                {canUseMestreTools && (
-                  <>
-                    <button
-                      className="btn-primary fullwidth"
-                      onClick={() => onOpenSessionWizard && onOpenSessionWizard()}
-                    >
-                      Criar sessão (assistente)
-                    </button>
-                    <button
-                      className="btn-outline fullwidth"
-                      onClick={async () => {
-                        try {
-                          onCloseSessionWizard && onCloseSessionWizard();
-                          const id = await createSession(username, 20, 15);
-                          flushSync(() => setContentTab("map"));
-                          navigate("/session/" + id);
-                        } catch (err) {
-                          console.error(err);
-                          alert("Erro ao criar sessão: " + err.message);
-                        }
-                      }}
-                    >
-                      Criar sessão rápida
-                    </button>
-                  </>
-                )}
-                <button
-                  className="btn-outline fullwidth"
-                  onClick={() => navigate("/biblioteca")}
-                  title="Sua biblioteca individual de imagens e sons"
-                >
-                  📚 Minha biblioteca
-                </button>
                 <button
                   className="btn-primary fullwidth"
                   onClick={() => navigate("/join")}
                 >
                   Entrar na sessão
                 </button>
-              </div>
-              <div className="nav-group">
-                <span className="nav-group-label">Conta</span>
                 <button
                   type="button"
-                  className="btn-primary fullwidth"
-                  onClick={() => navigate("/notas")}
-                  title="Suas notas pessoais (não atreladas a uma ficha específica)"
+                  className={`btn-outline fullwidth sidebar-menu-toggle ${
+                    sidebarMenuOpen ? "is-open" : ""
+                  }`}
+                  aria-expanded={sidebarMenuOpen}
+                  onClick={() => setSidebarMenuOpen((o) => !o)}
                 >
-                  📝 Notas de Perfil
+                  Menu {sidebarMenuOpen ? "▴" : "▾"}
                 </button>
-                <button
-                  type="button"
-                  className="btn-outline fullwidth"
-                  onClick={() => onOpenImportExport && onOpenImportExport("export")}
-                  disabled={!sheet || (!sheet.id && !sheet.name)}
-                  title="Exportar a ficha selecionada em JSON"
+                <div
+                  className={`sidebar-menu-panel ${sidebarMenuOpen ? "is-open" : ""}`}
+                  aria-hidden={!sidebarMenuOpen}
                 >
-                  ⬆️ Exportar ficha
-                </button>
-                <button
-                  type="button"
-                  className="btn-outline fullwidth"
-                  onClick={() => onOpenImportExport && onOpenImportExport("import")}
-                  title="Importar ficha de um arquivo JSON"
-                >
-                  ⬇️ Importar ficha
-                </button>
-              </div>
-              <div className="nav-group">
-                <button
-                  type="button"
-                  className="btn-outline fullwidth"
-                  onClick={() => navigate("/regras")}
-                >
-                  Regras
-                </button>
+                  <div className="sidebar-menu-inner">
+                    {canUseMestreTools && (
+                      <>
+                        <button
+                          className="btn-primary fullwidth"
+                          onClick={() => onOpenSessionWizard && onOpenSessionWizard()}
+                        >
+                          Criar sessão (assistente)
+                        </button>
+                        <button
+                          className="btn-outline fullwidth"
+                          onClick={async () => {
+                            try {
+                              onCloseSessionWizard && onCloseSessionWizard();
+                              const id = await createSession(username, 20, 15);
+                              flushSync(() => setContentTab("map"));
+                              navigate("/session/" + id);
+                            } catch (err) {
+                              console.error(err);
+                              alert("Erro ao criar sessão: " + err.message);
+                            }
+                          }}
+                        >
+                          Criar sessão rápida
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="btn-outline fullwidth"
+                      onClick={() => navigate("/biblioteca")}
+                      title="Sua biblioteca individual de imagens e sons"
+                    >
+                      📚 Minha biblioteca
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary fullwidth"
+                      onClick={() => navigate("/notas")}
+                      title="Suas notas pessoais (não atreladas a uma ficha específica)"
+                    >
+                      📝 Notas de Perfil
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline fullwidth"
+                      onClick={() => onOpenImportExport && onOpenImportExport("export")}
+                      disabled={!sheet || (!sheet.id && !sheet.name)}
+                      title="Exportar a ficha selecionada em JSON"
+                    >
+                      ⬆️ Exportar ficha
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline fullwidth"
+                      onClick={() => onOpenImportExport && onOpenImportExport("import")}
+                      title="Importar ficha de um arquivo JSON"
+                    >
+                      ⬇️ Importar ficha
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline fullwidth"
+                      onClick={handleCopyClick}
+                      disabled={!sheet || (!sheet.id && !sheet.name)}
+                      title="Copiar JSON completo da ficha para a área de transferência"
+                    >
+                      {copyFlash || "📋 Copiar ficha"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline fullwidth"
+                      onClick={() => navigate("/regras")}
+                    >
+                      Regras
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="nav-group nav-group-end">
                 <button className="btn-danger fullwidth" onClick={handleLogout}>
@@ -452,7 +497,11 @@ function EditorLayout({
               )}
           </aside>
 
-          <main className={`editor ${sessionId && contentTab === "map" ? "editor--session-map" : ""}`}>
+          <main
+            className={`editor ${sessionId && contentTab === "map" ? "editor--session-map" : ""}${
+              levelUpPulse ? " editor--levelup-pulse" : ""
+            }`}
+          >
             {sessionId && (
               <div className="editor-tabs">
                 <button type="button" className={contentTab === "sheet" ? "editor-tab active" : "editor-tab"} onClick={() => setContentTab("sheet")}>Ficha</button>
@@ -475,28 +524,41 @@ function EditorLayout({
                       />
                       <div className="level-input">
                         <label>Nível</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={sheet.level || ""}
-                          onChange={(e) => {
-                            const nextLevel = e.target.value === "" ? 0 : Number(e.target.value);
-                            const prevLevel = Number(sheet.level) || 0;
-                            if (nextLevel > prevLevel && prevLevel > 0) {
-                              const { sheet: leveled, rolls, gain } = applyLevelUpHp(sheet, prevLevel, nextLevel);
-                              const detail = rolls.map((r) => `d12=${r.value}`).join(", ");
-                              window.alert(
-                                `Level up ${prevLevel} → ${nextLevel}\nPV +${gain} ((1+FIS)×d12 por nível)\n${detail}\nNovo máx: ${leveled.bars.maxHp}`
-                              );
-                              setSheet(leveled);
-                              return;
-                            }
-                            setSheet({ ...sheet, level: nextLevel });
-                          }}
-                          onBlur={() => saveSheet(sheet)}
-                          className="input-number"
-                          title="Ao subir de nível: rola (1+FIS) d12 e soma ao PV"
-                        />
+                        <button
+                          type="button"
+                          className={`level-display ${levelUpOpen ? "is-open" : ""}`}
+                          title="Clique para mostrar/ocultar subir de nível"
+                          onClick={() => setLevelUpOpen((o) => !o)}
+                        >
+                          {sheet.level || 1}
+                        </button>
+                        <div className={`level-up-controls ${levelUpOpen ? "is-open" : ""}`}>
+                          <div className="level-up-controls-inner">
+                            <input
+                              type="number"
+                              className="input-number level-up-amount"
+                              min={1}
+                              max={20}
+                              value={levelUpAmount}
+                              onChange={(e) => {
+                                const n = Math.max(1, Math.min(20, Math.floor(Number(e.target.value) || 1)));
+                                setLevelUpAmount(n);
+                              }}
+                              title="Quantos níveis subir de uma vez"
+                              aria-label="Quantidade de níveis"
+                            />
+                            <button
+                              type="button"
+                              className="btn-primary small"
+                              onClick={() =>
+                                onRequestLevelUp && onRequestLevelUp(Math.max(1, levelUpAmount || 1))
+                              }
+                              title="Ritual de pontos (3 livres + 1 inicial por nível) e d12 de PV"
+                            >
+                              Subir {levelUpAmount > 1 ? `${levelUpAmount} níveis` : "de nível"}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -565,6 +627,7 @@ function EditorLayout({
                     characterId={selectedId}
                     onRequestRest={onRequestRest}
                     onActivateFocus={onActivateFocus}
+                    onUndoLevelUp={onUndoLevelUp}
                   />
                 )}
                 {isMobile && mobileContentTab === "dice" && (
@@ -662,8 +725,11 @@ export default function RPGPlayerEditor() {
   const [sessionWizardOpen, setSessionWizardOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [showChangelogBadge, setShowChangelogBadge] = useState(() => hasUnreadChangelog());
+  const [levelUpPulse, setLevelUpPulse] = useState(false);
+  const [levelUpRitual, setLevelUpRitual] = useState(null); // { from, to } | null
   const savePendingRef = useRef(0);
   const saveStatusTimerRef = useRef(null);
+  const levelUpPulseTimerRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -731,6 +797,10 @@ export default function RPGPlayerEditor() {
   // Firestore CRUD: only update list from snapshot; do NOT overwrite sheet on every snapshot (that would steal focus while typing)
   useEffect(() => {
     if (!isLoggedIn) return;
+
+    purgeExpiredSessions().catch((err) =>
+      console.warn("Falha ao limpar sessões expiradas:", err)
+    );
 
     const col = collection(db, `users/${username}/characters`);
     const unsub = onSnapshot(col, (snap) => {
@@ -861,12 +931,101 @@ export default function RPGPlayerEditor() {
     setImportExportState({ open: false, mode: "export" });
   };
 
+  const handleRequestLevelUp = useCallback((amount = 1) => {
+    const from = Number(sheet.level) || 1;
+    if (needsInitialStatBeforeLevelUp(sheet)) {
+      alert(
+        "Defina o atributo inicial na aba INFO antes do primeiro level-up.\n" +
+          "(Fichas já em campanha, nível 10+, podem escolher no ritual.)"
+      );
+      return;
+    }
+    const steps = Math.max(1, Math.min(20, Math.floor(Number(amount) || 1)));
+    const to = from + steps;
+    clearTimeout(levelUpPulseTimerRef.current);
+    setContentTab("sheet");
+      setLevelUpPulse(true);
+    levelUpPulseTimerRef.current = setTimeout(() => {
+      setLevelUpPulse(false);
+      setLevelUpRitual({ from, to });
+    }, 1650);
+  }, [sheet]);
+
+  const handleLevelUpCancel = useCallback(() => {
+    setLevelUpRitual(null);
+  }, []);
+
+  const handleLevelUpConfirm = useCallback(
+    ({ deltas, fisDelta, chosenInitial, rolls, gain: rolledGain }) => {
+      if (!levelUpRitual) return;
+      const s = JSON.parse(JSON.stringify(sheet));
+      if (!s.stats) s.stats = { ...EMPTY_STATS };
+      if (!s.characterInfo) s.characterInfo = {};
+      if (chosenInitial && CORE_STATS.includes(chosenInitial)) {
+        s.characterInfo.initialStat = chosenInitial;
+      }
+      Object.entries(deltas || {}).forEach(([k, v]) => {
+        const n = Number(v) || 0;
+        if (!n) return;
+        s.stats[k] = (Number(s.stats[k]) || 0) + n;
+      });
+      s.level = levelUpRitual.from;
+      const { sheet: leveled, gain, snapshot } = applyLevelUpHp(
+        s,
+        levelUpRitual.from,
+        levelUpRitual.to,
+        { fisDelta, rolls, gain: rolledGain }
+      );
+      snapshot.deltas = { ...(deltas || {}) };
+      leveled.levelUpHistory = [...(leveled.levelUpHistory || []), snapshot];
+      setLevelUpRitual(null);
+      setSheet(leveled);
+      setTimeout(() => saveSheet(leveled), 0);
+    },
+    [levelUpRitual, sheet, saveSheet]
+  );
+
+  const handleUndoLevelUp = useCallback(() => {
+    const history = sheet.levelUpHistory || [];
+    if (!history.length) {
+      alert("Não há level-up para desfazer.");
+      return;
+    }
+    if (!window.confirm("Desfazer o último level-up? Pontos, PV e nível voltam ao estado anterior.")) {
+      return;
+    }
+    const result = undoLastLevelUp(sheet);
+    if (!result.ok) {
+      alert(result.error || "Não foi possível desfazer.");
+      return;
+    }
+    setSheet(result.sheet);
+    setTimeout(() => saveSheet(result.sheet), 0);
+  }, [sheet, saveSheet]);
+
+  const handleCopySheet = useCallback(async () => {
+    const payload = buildExportPayload(sheet, ["mecanica", "narrativa", "personalizacao"]);
+    const text = JSON.stringify(payload, null, 2);
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }, [sheet]);
+
   const handleImportConfirmed = useCallback(
     async (preparedCharacter, options = {}) => {
       const action = options.action || "new";
       const data = {
         ...emptySheet,
         ...preparedCharacter,
+        abilities: normalizeAbilities(preparedCharacter.abilities || []),
+        traits: normalizeTraits(preparedCharacter.traits || []),
         owner: username,
       };
 
@@ -980,6 +1139,10 @@ export default function RPGPlayerEditor() {
       if (isMestreAccount(username)) setSessionWizardOpen(true);
     },
     onCloseSessionWizard: () => setSessionWizardOpen(false),
+    levelUpPulse,
+    onRequestLevelUp: handleRequestLevelUp,
+    onUndoLevelUp: handleUndoLevelUp,
+    onCopySheet: handleCopySheet,
   };
 
   return (
@@ -1001,6 +1164,27 @@ export default function RPGPlayerEditor() {
         characters={characters}
         onImportConfirmed={handleImportConfirmed}
       />
+      {levelUpRitual && (
+        <LevelUpRitual
+          key={`${levelUpRitual.from}-${levelUpRitual.to}`}
+          open
+          fromLevel={levelUpRitual.from}
+          toLevel={levelUpRitual.to}
+          baseStats={sheet.stats}
+          initialStat={(sheet.characterInfo || {}).initialStat || ""}
+          requireInitialInInfo={false}
+          onInitialStatChange={(stat) => {
+            setSheet((prev) => {
+              const next = JSON.parse(JSON.stringify(prev));
+              if (!next.characterInfo) next.characterInfo = {};
+              next.characterInfo.initialStat = stat;
+              return next;
+            });
+          }}
+          onConfirm={handleLevelUpConfirm}
+          onCancel={handleLevelUpCancel}
+        />
+      )}
       {sessionWizardOpen && isMestreAccount(username) && (
         <CreateSessionWizard
           open

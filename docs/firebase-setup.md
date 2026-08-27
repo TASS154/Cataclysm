@@ -18,27 +18,35 @@ users/
             ether: number,
             vigor: number,
             hp: number,
-            maxHp: number
+            maxHp: number,
+            sanity: number,
+            maxSanity: number
           }
         - stats: {
-            for: number,
+            fis: number,
             des: number,
-            sab: number,
-            int: number,
+            men: number,
             car: number,
-            con: number,
-            arteDivina: number,
             inata: number,
+            arteDivina: number,
             magica: number
+          }
+        - overheat: { pe: boolean, ether: boolean, vigor: boolean }
+        - rays: number (opcional; personalização Kaká)
+        - characterInfo: {
+            class, race, background, alignment, age, height, weight,
+            dominantField: string  // slug do campo dominante (magia)
           }
         - abilities: Array<{
             id: number,
             title: string,
-            type: string,
+            type: "inata" | "magia" | "arte",
             description: string,
             effect: string,
             damage: string,
-            cost: string
+            cost: number,
+            field?: string,     // slug do campo (magia)
+            soundUrl?: string
           }>
         - inventory: Array<{
             name: string,
@@ -46,6 +54,7 @@ users/
             description: string,
             tags: string[]
           }>
+        - equipment: { armorMode, armorSet, armorPieces, weapons, carried }
         - coins: {
             gold: number,
             silver: number
@@ -58,10 +67,27 @@ users/
         - effects: Array<{
             id: number,
             name: string,
-            description: string
+            description: string,
+            rounds: number,
+            damage: number,
+            effect: string,
+            drainType: string,
+            drainAmount: number,
+            tickMode: "turnStart" | "turnEnd" | "round",
+            sourceAreaId: string | null,
+            continuous: boolean
           }>
         - notes: string
-        - createdAt: timestamp
+        - lore: string
+        - documents: array
+        - galleryImages: array
+        - modes: array
+        - diceShortcuts: array
+        - caArmorMod: number
+        - focusType: "inspiration" | "certainty"
+        - focusPoints: number
+        - pendingRollPower: null | "inspiration" | "certainty"
+        - createdAt: number
         - owner: string
     preferences/
       theme/

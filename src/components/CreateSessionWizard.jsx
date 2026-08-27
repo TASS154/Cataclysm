@@ -13,6 +13,7 @@ const emptyMap = () => ({
 export default function CreateSessionWizard({ open, onClose, username, onCreated }) {
   const [step, setStep] = useState(0);
   const [sessionName, setSessionName] = useState("Nova Sessão");
+  const [customId, setCustomId] = useState("");
   const [maps, setMaps] = useState([emptyMap()]);
   const [images, setImages] = useState([]);
   const [sounds, setSounds] = useState([]);
@@ -25,6 +26,7 @@ export default function CreateSessionWizard({ open, onClose, username, onCreated
     if (!open || !username) return;
     setStep(0);
     setSessionName("Nova Sessão");
+    setCustomId("");
     setMaps([{ ...emptyMap(), name: "Mapa 1" }]);
     setSelectedImageIds([]);
     setSelectedSoundIds([]);
@@ -58,6 +60,7 @@ export default function CreateSessionWizard({ open, onClose, username, onCreated
         mapSequence,
         selectedImageIds,
         selectedSoundIds,
+        customId,
       });
       onClose && onClose();
       onCreated && onCreated(id);
@@ -82,6 +85,19 @@ export default function CreateSessionWizard({ open, onClose, username, onCreated
             <div className="form-group">
               <label>Nome da sessão</label>
               <input className="input-login" value={sessionName} onChange={(e) => setSessionName(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Código / URL da sessão (opcional)</label>
+              <input
+                className="input-login"
+                value={customId}
+                onChange={(e) => setCustomId(e.target.value)}
+                placeholder="ex: mesa-sabado (vazio = código aleatório)"
+              />
+              <div className="muted small" style={{ marginTop: 4 }}>
+                Link ficará <code>/session/{customId.trim() ? customId.trim().toLowerCase().replace(/\s+/g, "-") : "…"}</code>
+                . Só letras, números, - e _. Sessões expiram em 24h.
+              </div>
             </div>
             <p className="muted small">Configure o primeiro mapa. Você pode adicionar mais cenas no próximo passo.</p>
             <div className="form-group">

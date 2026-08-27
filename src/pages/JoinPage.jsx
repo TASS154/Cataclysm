@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useUser } from "../context/UserContext";
-import { getSession, addToken, hasTokenInSession } from "../services/sessionService";
+import { getSession, addToken, hasTokenInSession, purgeExpiredSessions } from "../services/sessionService";
 import "./JoinPage.css";
 
 export default function JoinPage() {
@@ -14,6 +14,10 @@ export default function JoinPage() {
   const [session, setSession] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    purgeExpiredSessions().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!username) return;

@@ -1,6 +1,7 @@
 import {
   collection,
   addDoc,
+  setDoc,
   doc,
   getDoc,
   getDocs,
@@ -8,12 +9,95 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  Timestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
 const SESSIONS_COLLECTION = "sessions";
 const TOKENS_SUBCOLLECTION = "tokens";
 const AREAS_SUBCOLLECTION = "areas";
+const ROLLS_SUBCOLLECTION = "rolls";
+
+/** Sessões expiram 24h após criação. */
+export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+export function sanitizeSessionId(raw) {
+  return String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "")
+    .slice(0, 64);
+}
+
+function createdAtToMs(createdAt) {
+  if (!createdAt) return null;
+  if (typeof createdAt.toMillis === "function") return createdAt.toMillis();
+  if (typeof createdAt.seconds === "number") return createdAt.seconds * 1000;
+  if (typeof createdAt === "number") return createdAt;
+  const parsed = Date.parse(createdAt);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function isSessionExpired(session) {
+  if (!session) return true;
+  if (session.expiresAt != null) {
+    const exp = createdAtToMs(session.expiresAt);
+    if (exp != null) return Date.now() >= exp;
+  }
+  const created = createdAtToMs(session.createdAt);
+  if (created == null) return false;
+  return Date.now() >= created + SESSION_TTL_MS;
+}
+
+async function deleteSubcollection(sessionId, subName) {
+  const col = collection(db, SESSIONS_COLLECTION, sessionId, subName);
+  const snap = await getDocs(col);
+  if (snap.empty) return;
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += 400) {
+    const chunk = docs.slice(i, i + 400);
+    const batch = writeBatch(db);
+    chunk.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+
+/**
+ * Remove sessão e subcoleções (tokens, areas, rolls).
+ */
+export async function deleteSessionFully(sessionId) {
+  if (!sessionId) return;
+  await Promise.all([
+    deleteSubcollection(sessionId, TOKENS_SUBCOLLECTION),
+    deleteSubcollection(sessionId, AREAS_SUBCOLLECTION),
+    deleteSubcollection(sessionId, ROLLS_SUBCOLLECTION),
+  ]);
+  await deleteDoc(doc(db, SESSIONS_COLLECTION, sessionId));
+}
+
+/**
+ * Apaga todas as sessões (ou só as expiradas).
+ * @returns {{ deleted: number, ids: string[] }}
+ */
+export async function purgeSessions({ onlyExpired = false } = {}) {
+  const snap = await getDocs(collection(db, SESSIONS_COLLECTION));
+  const ids = [];
+  for (const d of snap.docs) {
+    const data = { id: d.id, ...d.data() };
+    if (onlyExpired && !isSessionExpired(data)) continue;
+    await deleteSessionFully(d.id);
+    ids.push(d.id);
+  }
+  return { deleted: ids.length, ids };
+}
+
+export async function purgeExpiredSessions() {
+  return purgeSessions({ onlyExpired: true });
+}
 
 /**
  * Cria uma nova sessão de mapa. Quem cria é o mestre.
@@ -30,6 +114,7 @@ export async function createSession(gmUsername, options = {}) {
     mapSequence = null,
     selectedImageIds = [],
     selectedSoundIds = [],
+    customId = "",
   } = typeof options === "object" && options !== null
     ? options
     : { mapWidth: arguments[1], mapHeight: arguments[2], name: arguments[3] };
@@ -57,7 +142,8 @@ export async function createSession(gmUsername, options = {}) {
         backgroundImageUrl: firstMap.backgroundImageUrl || "",
       }];
 
-  const ref = await addDoc(collection(db, SESSIONS_COLLECTION), {
+  const now = Date.now();
+  const payload = {
     gmUsername,
     name: name || "Sessão",
     mapWidth: sequence[0].mapWidth,
@@ -75,19 +161,38 @@ export async function createSession(gmUsername, options = {}) {
       activeSoundUrl: "",
     },
     createdAt: serverTimestamp(),
-  });
+    expiresAt: Timestamp.fromMillis(now + SESSION_TTL_MS),
+  };
+
+  const wantedId = sanitizeSessionId(customId);
+  if (wantedId) {
+    if (wantedId.length < 3) {
+      throw new Error("O código da sessão precisa ter pelo menos 3 caracteres.");
+    }
+    const existing = await getDoc(doc(db, SESSIONS_COLLECTION, wantedId));
+    if (existing.exists()) {
+      throw new Error("Já existe uma sessão com esse código/URL. Escolha outro.");
+    }
+    await setDoc(doc(db, SESSIONS_COLLECTION, wantedId), payload);
+    return wantedId;
+  }
+
+  const ref = await addDoc(collection(db, SESSIONS_COLLECTION), payload);
   return ref.id;
 }
 
 /**
- * Busca os dados da sessão (uma vez).
- * @param {string} sessionId
- * @returns {Promise<{ id: string, gmUsername: string, mapWidth: number, mapHeight: number, name: string } | null>}
+ * Busca os dados da sessão (uma vez). Remove se expirada.
  */
 export async function getSession(sessionId) {
   const snap = await getDoc(doc(db, SESSIONS_COLLECTION, sessionId));
   if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() };
+  const data = { id: snap.id, ...snap.data() };
+  if (isSessionExpired(data)) {
+    await deleteSessionFully(snap.id).catch(console.error);
+    return null;
+  }
+  return data;
 }
 
 /**
@@ -98,8 +203,21 @@ export function subscribeSession(sessionId, callback, onError) {
   return onSnapshot(
     doc(db, SESSIONS_COLLECTION, sessionId),
     (snap) => {
-      if (!snap.exists()) callback(null);
-      else callback({ id: snap.id, ...snap.data() });
+      if (!snap.exists()) {
+        callback(null);
+        return;
+      }
+      const data = { id: snap.id, ...snap.data() };
+      if (isSessionExpired(data)) {
+        deleteSessionFully(snap.id)
+          .then(() => callback(null))
+          .catch((err) => {
+            console.error(err);
+            callback(null);
+          });
+        return;
+      }
+      callback(data);
     },
     (err) => {
       console.error("subscribeSession error:", err);
@@ -110,11 +228,11 @@ export function subscribeSession(sessionId, callback, onError) {
 }
 
 /**
- * Encerra a sessão (remove o documento). Subcoleções permanecem no Firestore.
+ * Encerra a sessão (remove o documento e subcoleções).
  */
 export async function endSession(sessionId) {
   if (!sessionId) return;
-  await deleteDoc(doc(db, SESSIONS_COLLECTION, sessionId));
+  await deleteSessionFully(sessionId);
 }
 
 /**
@@ -132,6 +250,7 @@ export async function updateSession(sessionId, data) {
   if (data.selectedImageIds !== undefined) update.selectedImageIds = data.selectedImageIds;
   if (data.selectedSoundIds !== undefined) update.selectedSoundIds = data.selectedSoundIds;
   if (data.roundTracker !== undefined) update.roundTracker = data.roundTracker;
+  if (data.lastAirBreak !== undefined) update.lastAirBreak = data.lastAirBreak;
   if (Object.keys(update).length === 0) return;
   await updateDoc(sessionRef, update);
 }
@@ -152,19 +271,10 @@ export async function switchSessionMap(sessionId, mapIndex, mapSequence) {
   });
 }
 
-/**
- * Atualiza contador de rodadas/turnos e lembretes.
- */
 export async function updateRoundTracker(sessionId, roundTracker) {
   await updateSession(sessionId, { roundTracker });
 }
 
-/**
- * Inscreve para atualizações em tempo real dos tokens da sessão.
- * @param {string} sessionId
- * @param {(tokens: Array<{ id: string, ownerUsername: string, characterId: string, characterName: string, x: number, y: number, color?: string }>) => void} callback
- * @returns {() => void} unsubscribe
- */
 export function subscribeTokens(sessionId, callback) {
   const tokensCol = collection(db, SESSIONS_COLLECTION, sessionId, TOKENS_SUBCOLLECTION);
   return onSnapshot(tokensCol, (snap) => {
@@ -178,12 +288,6 @@ export function subscribeTokens(sessionId, callback) {
   });
 }
 
-/**
- * Adiciona um token na sessão (jogador entrando ou mestre colocando).
- * @param {string} sessionId
- * @param {{ ownerUsername: string, characterId: string, characterName: string, x?: number, y?: number, color?: string }} data
- * @returns {Promise<string>} tokenId
- */
 export async function addToken(sessionId, data) {
   const tokensCol = collection(db, SESSIONS_COLLECTION, sessionId, TOKENS_SUBCOLLECTION);
   const ref = await addDoc(tokensCol, {
@@ -200,12 +304,6 @@ export async function addToken(sessionId, data) {
   return ref.id;
 }
 
-/**
- * Atualiza a posição e/ou cor de um token.
- * @param {string} sessionId
- * @param {string} tokenId
- * @param {{ x?: number, y?: number, color?: string }} data
- */
 export async function updateTokenPosition(sessionId, tokenId, data) {
   const tokenRef = doc(db, SESSIONS_COLLECTION, sessionId, TOKENS_SUBCOLLECTION, tokenId);
   const update = {};
@@ -218,23 +316,11 @@ export async function updateTokenPosition(sessionId, tokenId, data) {
   await updateDoc(tokenRef, update);
 }
 
-/**
- * Remove um token do mapa (mestre).
- * @param {string} sessionId
- * @param {string} tokenId
- */
 export async function deleteToken(sessionId, tokenId) {
   const tokenRef = doc(db, SESSIONS_COLLECTION, sessionId, TOKENS_SUBCOLLECTION, tokenId);
   await deleteDoc(tokenRef);
 }
 
-/**
- * Verifica se o usuário já tem um token nesta sessão (por ownerUsername + characterId).
- * @param {string} sessionId
- * @param {string} ownerUsername
- * @param {string} [characterId] - se não passar, verifica só por ownerUsername
- * @returns {Promise<boolean>}
- */
 export async function hasTokenInSession(sessionId, ownerUsername, characterId) {
   const tokensCol = collection(db, SESSIONS_COLLECTION, sessionId, TOKENS_SUBCOLLECTION);
   const snap = await getDocs(tokensCol);
@@ -246,11 +332,6 @@ export async function hasTokenInSession(sessionId, ownerUsername, characterId) {
   });
 }
 
-/**
- * Áreas de efeito: inscreve em tempo real.
- * @param {string} sessionId
- * @param {(areas: Array<{ id: string, name: string, type: string, cells: Array<{x: number, y: number}>, color?: string }>) => void} callback
- */
 export function subscribeAreas(sessionId, callback) {
   const areasCol = collection(db, SESSIONS_COLLECTION, sessionId, AREAS_SUBCOLLECTION);
   return onSnapshot(areasCol, (snap) => {
@@ -274,9 +355,6 @@ export function subscribeAreas(sessionId, callback) {
   });
 }
 
-/**
- * Adiciona uma área de efeito / objeto.
- */
 export async function addArea(sessionId, data) {
   const areasCol = collection(db, SESSIONS_COLLECTION, sessionId, AREAS_SUBCOLLECTION);
   const ref = await addDoc(areasCol, {
@@ -303,15 +381,11 @@ export async function updateArea(sessionId, areaId, data) {
   await updateDoc(areaRef, update);
 }
 
-/**
- * Remove uma área de efeito.
- */
 export async function deleteArea(sessionId, areaId) {
   const areaRef = doc(db, SESSIONS_COLLECTION, sessionId, AREAS_SUBCOLLECTION, areaId);
   await deleteDoc(areaRef);
 }
 
-/** Fog of war: array de células cobertas no doc da sessão. */
 export async function updateFogCells(sessionId, fogCells) {
   const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
   await updateDoc(sessionRef, { fogCells: fogCells || [] });

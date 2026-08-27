@@ -107,6 +107,32 @@
   flex-wrap: wrap;
 }
 
+.json-io-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.json-io-textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.json-io-textarea:focus {
+  outline: none;
+  border-color: var(--accent-indigo);
+}
+
 .import-warnings {
   list-style: none;
   padding: 8px 12px;

@@ -191,39 +191,143 @@ export function rollD12() {
 }
 
 /**
- * Level-up PV: (1 + FIS) d12 → maxHp e hp (cap no novo máx).
- * Também atualiza máximos PE/Éter/Vigor por nível.
+ * Rola os d12 do level-up sem aplicar na ficha.
+ * @returns {{ rolls: Array<{kind:string,value:number}>, gain: number, diceCount: number, steps: number, fisDelta: number }}
  */
-export function applyLevelUpHp(sheet, fromLevel, toLevel) {
+export function rollLevelUpDice(fromLevel, toLevel, fisDelta = 0) {
+  const steps = Math.max(0, (Number(toLevel) || 0) - (Number(fromLevel) || 0));
+  const fisGain = Math.max(0, Math.floor(Number(fisDelta) || 0));
+  const rolls = [];
+  let gain = 0;
+  for (let i = 0; i < steps; i++) {
+    const v = rollD12();
+    rolls.push({ kind: "level", value: v });
+    gain += v;
+  }
+  for (let i = 0; i < fisGain; i++) {
+    const v = rollD12();
+    rolls.push({ kind: "fis", value: v });
+    gain += v;
+  }
+  return { rolls, gain, diceCount: steps + fisGain, steps, fisDelta: fisGain };
+}
+
+/**
+ * Level-up PV: (níveis ganhos + ΔFIS base) d12 → maxHp e hp.
+ * Não usa FIS total nem bônus de modos — só o delta de FIS base ganho neste level-up.
+ * Também atualiza máximos PE/Éter/Vigor por nível.
+ *
+ * @param {object} sheet
+ * @param {number} fromLevel
+ * @param {number} toLevel
+ * @param {{ fisDelta?: number, rolls?: Array<{kind:string,value:number}>, gain?: number }} [opts]
+ */
+export function applyLevelUpHp(sheet, fromLevel, toLevel, { fisDelta = 0, rolls: preRolls, gain: preGain } = {}) {
   const s = structuredClone ? structuredClone(sheet) : JSON.parse(JSON.stringify(sheet));
   if (!s.bars) s.bars = {};
   const stats = migrateStats(s.stats || {});
   s.stats = stats;
-  const fis = Math.max(0, Number(stats.fis) || 0);
   const steps = Math.max(0, (Number(toLevel) || 0) - (Number(fromLevel) || 0));
-  const rolls = [];
-  let gain = 0;
-  for (let step = 0; step < steps; step++) {
-    const base = rollD12();
-    rolls.push({ kind: "base", value: base });
-    gain += base;
-    for (let i = 0; i < fis; i++) {
-      const v = rollD12();
-      rolls.push({ kind: "fis", value: v });
-      gain += v;
-    }
+  const fisGain = Math.max(0, Math.floor(Number(fisDelta) || 0));
+
+  let rolls;
+  let gain;
+  if (Array.isArray(preRolls) && preRolls.length > 0) {
+    rolls = preRolls.map((r) => ({ kind: r.kind || "level", value: Number(r.value) || 0 }));
+    gain = preGain != null ? Number(preGain) || 0 : rolls.reduce((sum, r) => sum + (Number(r.value) || 0), 0);
+  } else {
+    const rolled = rollLevelUpDice(fromLevel, toLevel, fisGain);
+    rolls = rolled.rolls;
+    gain = rolled.gain;
   }
+
   const oldMax = Number(s.bars.maxHp) || Number(s.bars.hp) || 0;
   const oldHp = Number(s.bars.hp) || 0;
+  const snapshot = {
+    fromLevel: Number(fromLevel) || 0,
+    toLevel: Number(toLevel) || 0,
+    deltas: {}, // filled by caller
+    fisDelta: fisGain,
+    rolls,
+    gain,
+    diceCount: rolls.length,
+    maxHpBefore: oldMax,
+    hpBefore: oldHp,
+    maxInataBefore: Number(s.bars.maxInata) || (Number(fromLevel) || 1) * 200,
+    maxEtherBefore: Number(s.bars.maxEther) || (Number(fromLevel) || 1) * 100,
+    maxVigorBefore: Number(s.bars.maxVigor) || (Number(fromLevel) || 1) * 50,
+    at: Date.now(),
+  };
+
   const newMax = oldMax + gain;
   s.bars.maxHp = newMax;
   s.bars.hp = Math.min(newMax, oldHp + gain);
   s.level = Number(toLevel) || s.level;
-  // sync bar maxes by level
   s.bars.maxInata = (Number(toLevel) || 1) * 200;
   s.bars.maxEther = (Number(toLevel) || 1) * 100;
   s.bars.maxVigor = (Number(toLevel) || 1) * 50;
-  return { sheet: s, rolls, gain, fromLevel, toLevel };
+  return { sheet: s, rolls, gain, fromLevel, toLevel, fisDelta: fisGain, diceCount: rolls.length, snapshot };
+}
+
+/** Pontos livres por nível (além do +1 automático no atributo inicial). */
+export const LEVEL_UP_FREE_POINTS = 3;
+
+/**
+ * Fichas já em campanha (lvl >= este valor) não precisam ter initialStat
+ * definido na INFO antes do level-up — podem escolher no ritual.
+ */
+export const LEGACY_INITIAL_STAT_MIN_LEVEL = 10;
+
+export function needsInitialStatBeforeLevelUp(sheet) {
+  const level = Number(sheet?.level) || 0;
+  const initial = (sheet?.characterInfo || {}).initialStat;
+  if (CORE_STATS.includes(initial)) return false;
+  if (level >= LEGACY_INITIAL_STAT_MIN_LEVEL) return false;
+  return true;
+}
+
+/**
+ * Desfaz o último registro de levelUpHistory (stats + HP + nível + máximos).
+ * @returns {{ ok: boolean, sheet?: object, error?: string }}
+ */
+export function undoLastLevelUp(sheet) {
+  const history = Array.isArray(sheet?.levelUpHistory) ? sheet.levelUpHistory : [];
+  if (history.length === 0) {
+    return { ok: false, error: "Não há level-up para desfazer." };
+  }
+  const last = history[history.length - 1];
+  const s = structuredClone ? structuredClone(sheet) : JSON.parse(JSON.stringify(sheet));
+  if (!s.stats) s.stats = { ...EMPTY_STATS };
+  if (!s.bars) s.bars = {};
+
+  const deltas = last.deltas || {};
+  Object.entries(deltas).forEach(([k, v]) => {
+    const n = Number(v) || 0;
+    if (!n) return;
+    s.stats[k] = Math.max(0, (Number(s.stats[k]) || 0) - n);
+  });
+
+  s.level = Number(last.fromLevel) || s.level;
+  const gain = Number(last.gain) || 0;
+  if (last.maxHpBefore != null) {
+    s.bars.maxHp = Number(last.maxHpBefore) || 0;
+  } else {
+    s.bars.maxHp = Math.max(0, (Number(s.bars.maxHp) || 0) - gain);
+  }
+  if (last.hpBefore != null) {
+    s.bars.hp = Math.min(Number(s.bars.maxHp) || 0, Number(last.hpBefore) || 0);
+  } else {
+    s.bars.hp = Math.min(Number(s.bars.maxHp) || 0, Math.max(0, (Number(s.bars.hp) || 0) - gain));
+  }
+  if (last.maxInataBefore != null) s.bars.maxInata = Number(last.maxInataBefore);
+  else s.bars.maxInata = (Number(s.level) || 1) * 200;
+  if (last.maxEtherBefore != null) s.bars.maxEther = Number(last.maxEtherBefore);
+  else s.bars.maxEther = (Number(s.level) || 1) * 100;
+  if (last.maxVigorBefore != null) s.bars.maxVigor = Number(last.maxVigorBefore);
+  else s.bars.maxVigor = (Number(s.level) || 1) * 50;
+
+  s.levelUpHistory = history.slice(0, -1);
+  return { ok: true, sheet: s };
 }
 
 export function normalizeEffect(effect = {}) {
